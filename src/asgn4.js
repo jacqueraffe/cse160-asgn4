@@ -5,7 +5,7 @@
 // 
 
 // NOTE FOR GRADER:
-// # cse160-asgn3
+// # cse160-asgn4
 // heavily referenced video playlist. and used Gemini AI studio
 
 // Mine Maze: Try to find all the diamonds in the maze in the shortest time possible!
@@ -17,7 +17,9 @@ var VSHADER_SOURCE =`
   precision mediump float;
   attribute vec4 a_Position;
   attribute vec2 a_UV;
+  attribute vec3 a_Normal;
   varying vec2 v_UV;
+  varying vec3 v_Normal;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
@@ -25,7 +27,7 @@ var VSHADER_SOURCE =`
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
     //gl_Position =  u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-
+    v_Normal = a_Normal;
     v_UV = a_UV;
   }`
 
@@ -33,11 +35,14 @@ var VSHADER_SOURCE =`
 var FSHADER_SOURCE =`
   precision mediump float;
   varying vec2 v_UV;
+  varying vec3 v_Normal;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
   void main() {
-  if (u_whichTexture == -2){
+  if (u_whichTexture == -3){
+    gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
+} else if (u_whichTexture == -2){
     gl_FragColor = u_FragColor;
 } else if (u_whichTexture == -1){
     gl_FragColor = vec4(v_UV, 1.0,1.0);
@@ -74,12 +79,7 @@ function setupWebGL(){
       console.log('Failed to get the rendering context for WebGL');
       return;
     }
-    let mazeResult = generateMaze(32, 32);
-    g_map = mazeResult.maze;
-    const pos = mazeResult.startPosition;
-    var eye = new Vector3([pos[1]-16, 1.75, pos[0]-16]);
-    logMaze(g_map);
-    g_camera = new Camera(canvas, g_map, eye);
+    g_camera = new Camera(canvas);
     g_camera.updateViewMatrix();
 }
 
@@ -100,6 +100,18 @@ function connectVariablesToGLSL(){
   a_UV = gl.getAttribLocation(gl.program, 'a_UV');
   if (a_UV < 0) {
     console.log('Failed to get the storage location of a_UV');
+    return;
+  }
+  
+  a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
+  if (a_Normal < 0) {
+    console.log('Failed to get the storage location of a_Normal');
+    return;
+  }
+  
+  v_Normal = gl.getAttribLocation(gl.program, 'v_Normal');
+  if (v_Normal < 0) {
+    console.log('Failed to get the storage location of v_Normal');
     return;
   }
   
@@ -232,25 +244,7 @@ function logMaze(maze) {
 var g_diamonds = [];
 
 function addActionForHtmlUI(){
-  document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
-  document.getElementById('removeBlock').onclick = function() {updateBlock(false, g_map);};
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
-}
-
-function updateBlock(adding, map){
-  var x = Math.floor(g_camera.target.elements[0])+16;
-  var z = Math.floor(g_camera.target.elements[2])+16;
-  if(z<0 || z >= map.length || x<0 || x >= map[0].length){
-    return;
-  }
-  if (adding){
-    map[z][x] +=1;
-  } else {
-    if (map[z][x] == 0){
-      return;
-    }
-    map[z][x] -= 1;
-  }
 }
 
 var g_skyTexture;
@@ -371,9 +365,7 @@ function renderAllShapes(){
   //gl.enable(gl.CULL_FACE);
   //gl.cullFace(gl.BACK);
   gl.enable(gl.DEPTH_TEST);
-  drawMap(g_map);
   var floor = new Cube();
-  floor.color = [10/256, 200/255, 10/255, 1.0];
   floor.matrix.scale(32, 0.01, 32);
   floor.matrix.translate(-0.5, 0, -0.5);
   floor.textureNum = 0;
@@ -381,7 +373,6 @@ function renderAllShapes(){
   floor.renderFast();
   
   var sky = new Cube();
-  sky.color = [10/256, 10/255, 100/255, 1.0];
   sky.matrix.translate(0, -0.75, 0);
   sky.matrix.scale(50,50,50);
   sky.matrix.translate(-0.5, -0.5, -0.5);
@@ -389,20 +380,13 @@ function renderAllShapes(){
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
   sky.renderFast();
   
-  if (g_diamonds.length < 30){
-    var x = Math.floor(Math.random() * (32));
-    var y = Math.floor(Math.random() * (32));
-    if (g_map[y][x] == 0){
-      g_diamonds = g_diamonds.concat([[y-16,x-16]]);
-    }
-  }
+  var obj = new Cube();
+  obj.color = [10/256, 10/255, 100/255, 1.0];
+  obj.matrix.translate(5, 0, -5);
+  obj.textureNum = -2;
+  obj.renderFast();
   
-  collectDiamonds();
-  
-  drawDiamonds(g_diamonds);
-
   var duration = performance.now() - startTime;
-  sendTextToHTML( " Diamonds collected: " + g_score, "score");
   sendTextToHTML( " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), "numdot");
   sendTextToHTML( "target x: " + g_camera.target.elements[0] + " z: " + g_camera.target.elements[2], "targetXZ");
   sendTextToHTML( "eye x: " + g_camera.eye.elements[0] + " z: " + g_camera.eye.elements[2], "eyeXZ");
