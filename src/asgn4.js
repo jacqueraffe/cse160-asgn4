@@ -5,25 +5,27 @@
 // 
 
 // NOTE FOR GRADER:
-// # cse160-asgn4
+// # cse160-asgn3
 // heavily referenced video playlist. and used Gemini AI studio
 
+// Mine Maze: Try to find all the diamonds in the maze in the shortest time possible!
+// game element; walk through diamonds and watch your score go up!
+// wow factor: randomly generated maze
 
 
 var VSHADER_SOURCE =`
   precision mediump float;
   attribute vec4 a_Position;
   attribute vec2 a_UV;
-  attribute vec3 a_Normal;
   varying vec2 v_UV;
-  varying vec3 v_Normal;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-    v_Normal = a_Normal;
+    //gl_Position =  u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
+
     v_UV = a_UV;
   }`
 
@@ -31,31 +33,26 @@ var VSHADER_SOURCE =`
 var FSHADER_SOURCE =`
   precision mediump float;
   varying vec2 v_UV;
-  varying vec3 v_Normal;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
   void main() {
-  if (u_whichTexture == -3){
-    gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
-} else if (u_whichTexture == -2){
+  if (u_whichTexture == -2){
     gl_FragColor = u_FragColor;
 } else if (u_whichTexture == -1){
     gl_FragColor = vec4(v_UV, 1.0,1.0);
     } else if (u_whichTexture == 0){
     gl_FragColor = texture2D(u_Sampler0, v_UV);
 } else {
-    gl_FragColor = vec4(1,0.2,0.2,1);
+ gl_FragColor = vec4(1,0.2,0.2,1);
  }
-}`
-
+  }`
+  
 //Global Vars
 let canvas;
 let gl;
 let a_Position;
 let a_UV;
-let a_normal;
-let u_whichTexture
 let u_FragColor;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
@@ -65,12 +62,12 @@ let u_ViewMatrix;
 let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
-let g_globalAngle = 0;
-let g_normal = false;
+let g_map;
 
 function setupWebGL(){
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
+
     // Get the rendering context for WebGL
     gl = canvas.getContext("webgl", {preserveDrawingBuffer: true});
     if (!gl) {
@@ -89,7 +86,7 @@ function connectVariablesToGLSL(){
   }
 
   // // Get the storage location of a_Position
-  a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+ a_Position = gl.getAttribLocation(gl.program, 'a_Position');
   if (a_Position < 0) {
     console.log('Failed to get the storage location of a_Position');
     return;
@@ -101,26 +98,20 @@ function connectVariablesToGLSL(){
     return;
   }
   
-  a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
-  if (a_Normal < 0) {
-    console.log('Failed to get the storage location of a_Normal');
-    return;
-  }
-  
-  u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
-  if (!u_Sampler0) {
+   u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
+   if (!u_Sampler0) {
        console.log('Failed to get the storage location of u_Sampler0');
        return false;
    }
   
   u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
-  if (!u_whichTexture) {
+ if (!u_whichTexture) {
    console.log('Failed to get the storage location of u_whichTexture');
    return;
  }
   
   // Get the storage location of u_FragColor
-  u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+ u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
   if (!u_FragColor) {
     console.log('Failed to get the storage location of u_FragColor');
     return;
@@ -155,10 +146,10 @@ function connectVariablesToGLSL(){
   
 }
 
+let g_globalAngle = 0;
+
 function addActionForHtmlUI(){
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
-  document.getElementById("normalOn").onclick = function(){g_normal = true;};
-  document.getElementById("normalOff").onclick = function(){g_normal = false;};
 }
 
 var g_skyTexture;
@@ -206,6 +197,7 @@ function main() {
   requestAnimationFrame(tick);
 }
 
+
 function tick() {
   g_camera.move(); // Update camera position based on keys
   g_camera.updateViewMatrix();
@@ -213,8 +205,11 @@ function tick() {
   renderAllShapes();
   requestAnimationFrame(tick);
 }
+
+  
   
 function renderAllShapes(){
+  // Clear <canvas>
   var startTime = performance.now();
   var projMat = new Matrix4();
   projMat.setPerspective(30, canvas.width/canvas.height, 0.1, 100);
@@ -232,8 +227,8 @@ function renderAllShapes(){
   //gl.enable(gl.CULL_FACE);
   //gl.cullFace(gl.BACK);
   gl.enable(gl.DEPTH_TEST);
-  
   var floor = new Cube();
+  floor.color = [10/256, 200/255, 10/255, 1.0];
   floor.matrix.scale(32, 0.01, 32);
   floor.matrix.translate(-0.5, 0, -0.5);
   floor.textureNum = 0;
@@ -241,23 +236,14 @@ function renderAllShapes(){
   floor.renderFast();
   
   var sky = new Cube();
+  sky.color = [10/256, 10/255, 100/255, 1.0];
   sky.matrix.translate(0, -0.75, 0);
   sky.matrix.scale(50,50,50);
   sky.matrix.translate(-0.5, -0.5, -0.5);
   sky.textureNum = 0;
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
   sky.renderFast();
-  
-  var obj = new Cube();
-  obj.color = [10/256, 10/255, 100/255, 1.0];
-  obj.matrix.translate(5, 0, -5);
-  if (g_normal){
-    obj.textureNum = -3;
-  } else {
-    obj.textureNum = -2;
-  }
-  obj.renderFast();
-  
+
   var duration = performance.now() - startTime;
   sendTextToHTML( " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), "numdot");
   sendTextToHTML( "target x: " + g_camera.target.elements[0] + " z: " + g_camera.target.elements[2], "targetXZ");
