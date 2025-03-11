@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mine Maze!</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>
+    <p>
+      <p> Collect diamonds by walking through them! </p>
+      <p id = "score"> XXX </p>
+    </p>
+      <p id = "numdot"> XXX </p>
+      <p id = "targetXZ"> XXX </p>
+      <p id = "eyeXZ"> XXX </p>
+    <p>
+      <button type = "button" id = "addBlock"> Add Block</button>
+      <button type = "button" id = "removeBlock"> Removing Block</button>
+    </p>
+      Camera Angle <input type = "range" min = "0" max = "360" value = "0" class = "slider" id = "angleSlide">
+    </p>
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/Vector.js"></script>
+    <script src="lib/Matrix4.js"></script>
+    <script src="lib/Camera.js"></script>
+    
+    <script src="src/Triangle.js"></script>
+    <script src="src/Cube.js"></script>
+    <script src="src/Diamond.js"></script>
+    <script src="src/asgn3.js"></script>
+
+  </body>
+</html>
