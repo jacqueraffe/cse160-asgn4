@@ -54,6 +54,8 @@ let canvas;
 let gl;
 let a_Position;
 let a_UV;
+let a_normal;
+let u_whichTexture
 let u_FragColor;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
@@ -102,12 +104,6 @@ function connectVariablesToGLSL(){
   a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
   if (a_Normal < 0) {
     console.log('Failed to get the storage location of a_Normal');
-    return;
-  }
-  
-  v_Normal = gl.getAttribLocation(gl.program, 'v_Normal');
-  if (v_Normal < 0) {
-    console.log('Failed to get the storage location of v_Normal');
     return;
   }
   
