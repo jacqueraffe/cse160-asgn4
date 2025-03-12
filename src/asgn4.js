@@ -12,7 +12,9 @@ var VSHADER_SOURCE =`
   precision mediump float;
   attribute vec4 a_Position;
   attribute vec2 a_UV;
+  attribute vec3 a_Normal;
   varying vec2 v_UV;
+  varying vec3 v_Normal;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
@@ -20,6 +22,7 @@ var VSHADER_SOURCE =`
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
     v_UV = a_UV;
+    v_Normal = a_Normal;
   }`
 
 // Fragment shader program
@@ -29,8 +32,11 @@ var FSHADER_SOURCE =`
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
+  varying vec3 v_Normal;
   void main() {
-  if (u_whichTexture == -2){
+  if (u_whichTexture == -3){
+    gl_FragColor = vec4((v_Normal+1.0)/2.0,1.0);
+} else if (u_whichTexture == -2){
     gl_FragColor = u_FragColor;
 } else if (u_whichTexture == -1){
     gl_FragColor = vec4(v_UV, 1.0,1.0);
@@ -50,6 +56,7 @@ let u_FragColor;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let u_Sampler0;
+let u_whichTexture;
 let u_ProjectionMatrix;
 let u_ViewMatrix;
 let g_camera;
@@ -57,6 +64,7 @@ let g_seconds;
 let g_startTime = performance.now()/1000.0;
 let g_map;
 let g_globalAngle = 0;
+
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -89,6 +97,12 @@ function connectVariablesToGLSL(){
   a_UV = gl.getAttribLocation(gl.program, 'a_UV');
   if (a_UV < 0) {
     console.log('Failed to get the storage location of a_UV');
+    return;
+  }
+  
+  a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
+  if (a_Normal < 0) {
+    console.log('Failed to get the storage location of a_Normal');
     return;
   }
   
@@ -238,8 +252,8 @@ function renderAllShapes(){
   
   var obj = new Cube();
   obj.color = [100/256, 100/255, 100/255, 1.0];
-  obj.matrix.translate(-10, 0, 0);
-  obj.textureNum = -2;
+  obj.matrix.translate(-1, 0, 0);
+  obj.textureNum = -3;
   obj.renderFast();
 
   var duration = performance.now() - startTime;
