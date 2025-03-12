@@ -84,6 +84,7 @@ let g_map;
 let g_globalAngle = 0;
 let g_score = 0;
 let g_normalsOn = false;
+let g_animateLight = false;
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -264,6 +265,8 @@ let g_lightPos = [0,3,-2];
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
   document.getElementById('removeBlock').onclick = function() {updateBlock(false, g_map);};
+  document.getElementById('animateLightOn').onclick = function() {g_animateLight = true;};
+  document.getElementById('animateLightOff').onclick = function() {g_animateLight = false;};
   document.getElementById('normalsOn').onclick = function() {g_normalsOn = true;};
   document.getElementById('normalsOff').onclick = function() {g_normalsOn = false;};
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
@@ -346,8 +349,9 @@ function tick() {
 }
 
 function animation(){
-  g_lightPos[0] = Math.cos(g_seconds)*16;
-
+  if(g_animateLight){
+    g_lightPos[0] = Math.cos(g_seconds)*16;
+  }
 }
 
 function drawPearls(pearls) {
@@ -367,13 +371,13 @@ function drawPearls(pearls) {
     if (d%2 == 0){
       pearl.matrix.setIdentity();
       pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
-      pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
+      //pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
       pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
       pearl.renderFast();
     } else {
       cube.matrix.setIdentity();
       cube.matrix.translate(pearls[d][0], 2, pearls[d][1]);
-      cube.matrix.rotate(g_seconds*30, 0, 1, 0);
+      //cube.matrix.rotate(g_seconds*30, 0, 1, 0);
       cube.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
       cube.renderFast();
     }
@@ -428,8 +432,8 @@ function renderAllShapes(){
   gl.clearColor(0,0,0,1);
   gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
   
-  //gl.enable(gl.CULL_FACE);
-  //gl.cullFace(gl.BACK);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
   gl.enable(gl.DEPTH_TEST);
   drawMap(g_map);
   var floor = new Cube();
@@ -443,7 +447,7 @@ function renderAllShapes(){
   var sky = new Cube();
   sky.color = [10/256, 10/255, 100/255, 1.0];
   sky.matrix.translate(0, -0.75, 0);
-  sky.matrix.scale(50,50,50);
+  sky.matrix.scale(-50,-50,-50);
   sky.matrix.translate(-0.5, -0.5, -0.5);
   sky.textureNum = 0;
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
@@ -464,7 +468,7 @@ function renderAllShapes(){
   light.color = [2,2,0,1];
   light.textureNum = -2;
   light.matrix.translate(g_lightPos[0], g_lightPos[1], g_lightPos[2]);
-  light.matrix.scale(0.1, 0.1, 0.1);
+  light.matrix.scale(-0.1, -0.1, -0.1);
   light.matrix.translate(-0.5, -0.5, -0.5);
   light.renderFast();
 
