@@ -23,6 +23,7 @@ class Sphere {
        this.indices = [];
        this.indexedVertices = [];
        this.indexedNormals = [];
+       this.indexedUVs = []; // Add indexedUVs
 
        if (sphereToCopy instanceof Sphere) {
            // Deep copy constructor
@@ -56,12 +57,14 @@ class Sphere {
        this.indices = [...sphereToCopy.indices]; // Create a new array for indices
        this.indexedVertices = [...sphereToCopy.indexedVertices]; // Create a new array for indexedVertices
        this.indexedNormals = [...sphereToCopy.indexedNormals]; // Create a new array for indexedNormals
+       this.indexedUVs = [...sphereToCopy.indexedUVs]; // Copy indexedUVs
    }
 
    initSphere() {
        let vertices = [];
        let normals = [];
        let indices = [];
+       let uvs = []; // UV array
 
        for (let latNumber = 0; latNumber <= this.latitudeBands; latNumber++) {
            let theta = latNumber * Math.PI / this.latitudeBands;
@@ -77,6 +80,9 @@ class Sphere {
                let x = cosPhi * sinTheta;
                let y = sinPhi * sinTheta;
                let z = cosTheta;
+               let u = 1 - (longNumber / this.longitudeBands); // Calculate U coordinate
+               let v = 1 - (latNumber / this.latitudeBands);   // Calculate V coordinate
+
 
                vertices.push(x);
                vertices.push(y);
@@ -85,6 +91,8 @@ class Sphere {
                normals.push(x);
                normals.push(y);
                normals.push(z); // For a unit sphere, vertex normal is the same as vertex position
+               uvs.push(u);
+               uvs.push(v); // Store UV coordinates
            }
        }
 
@@ -104,6 +112,7 @@ class Sphere {
        }
        this.indexedVertices = [];
        this.indexedNormals = [];
+       this.indexedUVs = []; // Initialize indexedUVs
        for (let i = 0; i < indices.length; i++) {
            let index = indices[i];
            this.indexedVertices.push(vertices[index * 3]);
@@ -112,11 +121,13 @@ class Sphere {
            this.indexedNormals.push(normals[index * 3]);
            this.indexedNormals.push(normals[index * 3 + 1]);
            this.indexedNormals.push(normals[index * 3 + 2]);
+           this.indexedUVs.push(uvs[index * 2]); // Store indexed UV coordinates
+           this.indexedUVs.push(uvs[index * 2 + 1]);
        }
    }
 
 
-   render() {
+   render() { // Keep the old render method for now, or you can remove it if you only want renderFast
        gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
 
        for (let i = 0; i < this.indexedVertices.length; i += 9) {
@@ -142,6 +153,19 @@ class Sphere {
            ]);
        }
    }
+
+   renderFast() {
+       var rgba = this.color;
+       gl.uniform1i(u_whichTexture, this.textureNum);
+       gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+       gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+       drawTriangle3DUVNormal(
+           new Float32Array(this.indexedVertices),
+           new Float32Array(this.indexedUVs), // Use indexedUVs here
+           new Float32Array(this.indexedNormals)
+       );
+   }
+
 
    calculateFaceNormal(v1, v2, v3) {
        let a = subtractVectors(v2, v1);
@@ -172,4 +196,3 @@ function normalizeVector(v) {
        return [0, 0, 0]; // Avoid division by zero
    }
 }
-

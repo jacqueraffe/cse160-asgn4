@@ -149,8 +149,8 @@ index.html
     
     <script src="src/Triangle.js"></script>
     <script src="src/Cube.js"></script>
-    <script src="src/Diamond.js"></script>
-    <script src="src/asgn3.js"></script>
+    <script src="src/Sphere.js"></script>
+    <script src="src/asgn4.js"></script>
 
   </body>
 </html>
@@ -1183,284 +1183,284 @@ lib/Camera.js
 `````javascript
 // NOTE TO GRADER: created with the help of AI prompt:
 // Make a Camera class using gl.lookAt() and WASDQE controls.
-var Camera = function(canvas, map) {
-  this.eye = new Vector3([0, 1.75, 2]); // Initial eye position
-  this.target = new Vector3([0, 1.75, 0]); // Initial target
-  this.up = new Vector3([0, 1, 0]); // Initial up direction
-  this.viewMatrix = new Matrix4();
-  this.moveSpeed = 0.1; // Speed of movement
-  this.lookSpeed = 0.1; // Mouse look sensitivity
-  this.mouseLookEnabled = false; // Flag to enable/disable mouse look
-  this.lastMouseX = null;
-  this.lastMouseY = null;
-  this.canvas = canvas;
-  this.map = map;
-
-  this.keys = {
-      'w': false,
-      'a': false,
-      's': false,
-      'd': false,
-      'q': false,
-      'e': false
+var Camera = function(canvas, map, eye) {
+    this.eye = eye; // Initial eye position
+    this.target = new Vector3(eye.elements);
+    this.target.elements[0]-=1; // Initial target
+    this.up = new Vector3([0, 1, 0]); // Initial up direction
+    this.viewMatrix = new Matrix4();
+    this.moveSpeed = 0.1; // Speed of movement
+    this.lookSpeed = 0.1; // Mouse look sensitivity
+    this.mouseLookEnabled = false; // Flag to enable/disable mouse look
+    this.lastMouseX = null;
+    this.lastMouseY = null;
+    this.canvas = canvas;
+    this.map = map;
+  
+    this.keys = {
+        'w': false,
+        'a': false,
+        's': false,
+        'd': false,
+        'q': false,
+        'e': false
+    };
+  
+    document.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        if (this.keys.hasOwnProperty(key)) {
+            this.keys[key] = true;
+        }
+    });
+  
+    document.addEventListener('keyup', (event) => {
+        const key = event.key.toLowerCase();
+        if (this.keys.hasOwnProperty(key)) {
+            this.keys[key] = false;
+        }
+    });
+  
+    // Mouse event listeners for mouse look
+    this.canvas.addEventListener('mousedown', (event) => {
+        this.mouseLookEnabled = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    });
+  
+    document.addEventListener('mouseup', (event) => {
+        this.mouseLookEnabled = false;
+    });
+  
+    document.addEventListener('mousemove', (event) => {
+        if (this.mouseLookEnabled) {
+            let dx = event.clientX - this.lastMouseX;
+            let dy = event.clientY - this.lastMouseY;
+            this.rotate(dx, dy);
+            this.lastMouseX = event.clientX;
+            this.lastMouseY = event.clientY;
+        }
+    });
   };
-
-  document.addEventListener('keydown', (event) => {
-      const key = event.key.toLowerCase();
-      if (this.keys.hasOwnProperty(key)) {
-          this.keys[key] = true;
-      }
-  });
-
-  document.addEventListener('keyup', (event) => {
-      const key = event.key.toLowerCase();
-      if (this.keys.hasOwnProperty(key)) {
-          this.keys[key] = false;
-      }
-  });
-
-  // Mouse event listeners for mouse look
-  this.canvas.addEventListener('mousedown', (event) => {
-      this.mouseLookEnabled = true;
-      this.lastMouseX = event.clientX;
-      this.lastMouseY = event.clientY;
-  });
-
-  document.addEventListener('mouseup', (event) => {
-      this.mouseLookEnabled = false;
-  });
-
-  document.addEventListener('mousemove', (event) => {
-      if (this.mouseLookEnabled) {
-          let dx = event.clientX - this.lastMouseX;
-          let dy = event.clientY - this.lastMouseY;
-          this.rotate(dx, dy);
-          this.lastMouseX = event.clientX;
-          this.lastMouseY = event.clientY;
-      }
-  });
-};
-
-/**
-* Updates the view matrix based on eye, target, and up vectors.
-*/
-Camera.prototype.updateViewMatrix = function() {
-  this.viewMatrix.setLookAt(
-      this.eye.elements[0], this.eye.elements[1], this.eye.elements[2],
-      this.target.elements[0], this.target.elements[1], this.target.elements[2],
-      this.up.elements[0], this.up.elements[1], this.up.elements[2]
-  );
-};
-
-/**
-* Rotates the camera based on mouse movement.
-* @param {number} deltaX Mouse movement in X direction.
-* @param {number} deltaY Mouse movement in Y direction.
-*/
-Camera.prototype.rotate = function(deltaX, deltaY) {
-  let lookSpeed = this.lookSpeed;
-
-  // Calculate rotation angles based on mouse movement
-  let yaw = deltaX * lookSpeed;   // Yaw (horizontal rotation)
-  let pitch = -deltaY * lookSpeed; // Pitch (vertical rotation)
-
-  let rotationMatrix = new Matrix4();
-
-  // Yaw rotation around the Y axis (vertical axis)
-  rotationMatrix.rotate(yaw, 0, 1, 0);
-
-  // Get the current forward vector
-  let forward = new Vector3([
-      this.target.elements[0] - this.eye.elements[0],
-      this.target.elements[1] - this.eye.elements[1],
-      this.target.elements[2] - this.eye.elements[2]
-  ]);
-
-  // Rotate the forward vector by yaw
-  forward = rotationMatrix.multiplyVector3(forward);
-
-  // Pitch rotation around the right axis (horizontal axis)
-  rotationMatrix.setRotate(pitch, 1, 0, 0); // Rotate around X axis for pitch - this is incorrect in world space
-
-  // To pitch correctly, we need to rotate around the *camera's right* axis.
-  // We can calculate the right axis from the current forward and up vectors.
-  let right = new Vector3();
-  Vector3.cross(forward, this.up, right);
-  right.normalize();
-  rotationMatrix.setRotate(pitch, right.elements[0], right.elements[1], right.elements[2]);
-
-  // Apply pitch rotation to the forward vector (after yaw rotation)
-  forward = rotationMatrix.multiplyVector3(forward);
-
-
-  // Update the target position based on the rotated forward vector
-  this.target.set(this.eye).add(forward);
-};
-
-
-/**
-* Checks if the proposed new eye position is okay to move to (not inside a wall).
-* @param {Vector3} oldEye Current eye position.
-* @param {Vector3} newEye Proposed new eye position.
-* @return {boolean} True if it's okay to move, false otherwise.
-*/
-Camera.prototype.okayToMove = function(oldEye, newEye) {
-  // Define a margin around the camera to prevent getting too close to walls
-  let margin = 0.3; // Adjust this value as needed (smaller value = closer to walls)
-
-  let map_height = this.map.length;
-  let map_width = this.map[0].length;
-
-  // Check several points around the new eye position within the margin
-  for (let xOffset = -margin; xOffset <= margin; xOffset += margin) {
-      for (let zOffset = -margin; zOffset <= margin; zOffset += margin) {
-          let checkEye = new Vector3([newEye.elements[0] + xOffset, newEye.elements[1], newEye.elements[2] + zOffset]);
-
-          // Convert world coordinates to map indices
-          let mapX = Math.floor(checkEye.elements[0] + map_height / 2);
-          let mapZ = Math.floor(checkEye.elements[2] + map_width / 2);
-
-          // Check bounds and map value
-          if (mapX >= 0 && mapX < map_width && mapZ >= 0 && mapZ < map_height) {
-              if (this.map[mapZ][mapX] > 0) { // Assuming walls are marked with values > 1 (e.g., 2)
-                  return false; // Collision with wall in the margin area
-              }
-          }
-      }
-  }
-
-  return true; // Okay to move
-};
-
-
-/**
-* Moves the camera based on pressed keys (WASDQE) and attempts to slide along walls.
-*/
-Camera.prototype.move = function() {
-  let forward = new Vector3([
-      this.target.elements[0] - this.eye.elements[0],
-      this.target.elements[1] - this.eye.elements[1],
-      this.target.elements[2] - this.eye.elements[2]
-  ]).normalize();
-
-  // Project forward vector onto the horizontal plane (y=0)
-  // by setting the y component to 0 and re-normalizing
-  // Use forward.elements[0] and forward.elements[2] directly for horizontal movement
-  let forward_horizontal = new Vector3([
-      forward.elements[0], 0, forward.elements[2]
-  ]).normalize();
-
-
-  let right = new Vector3();
-  Vector3.cross(forward, this.up, right);
-  right.normalize();
-
-  let moveVector = new Vector3([0, 0, 0]);
-  let initialMoveVector = new Vector3([0,0,0]); // Store initial move intent for sliding
-
-  // Movement (WASD)
-  if (this.keys['w']) {
-      moveVector.add(forward_horizontal);
-      initialMoveVector.add(forward_horizontal);
-  }
-  if (this.keys['s']) {
-      moveVector.sub(forward_horizontal);
-      initialMoveVector.sub(forward_horizontal);
-  }
-  if (this.keys['a']) {
-      moveVector.sub(right);
-      initialMoveVector.sub(right);
-  }
-  if (this.keys['d']) {
-      moveVector.add(right);
-      initialMoveVector.add(right);
-  }
-
-
-  // Panning (QE - Horizontal Rotation) - Consider removing or modifying panning with mouse look
-  if (this.keys['q']) { // Pan Left (Q key pans left - rotate)
-      let panRotationMatrix = new Matrix4();
-      panRotationMatrix.setRotate(2, 0, 1, 0); // Rotate 1 degree around Y axis for pan left
-
-      let currentForward = new Vector3([
-          this.target.elements[0] - this.eye.elements[0],
-          this.target.elements[1] - this.eye.elements[1],
-          this.target.elements[2] - this.eye.elements[2]
-      ]);
-
-      let rotatedForward = panRotationMatrix.multiplyVector3(currentForward);
-      rotatedForward.normalize();
-
-      let currentDistance = Math.sqrt(
-          currentForward.elements[0] * currentForward.elements[0] +
-          currentForward.elements[1] * currentForward.elements[1] +
-          currentForward.elements[2] * currentForward.elements[2]
-      );
-
-      this.target.set(this.eye); // Set target to eye temporarily
-      this.target.add(rotatedForward.scale(currentDistance)); // Move target along rotated forward
-  }
-  if (this.keys['e']) { // Pan Right (E key pans right - rotate)
-      let panRotationMatrix = new Matrix4();
-      panRotationMatrix.setRotate(-2, 0, 1, 0); // Rotate -1 degree around Y axis for pan right
-
-      let currentForward = new Vector3([
-          this.target.elements[0] - this.eye.elements[0],
-          this.target.elements[1] - this.eye.elements[1],
-          this.target.elements[2] - this.eye.elements[2]
-      ]);
-
-      let rotatedForward = panRotationMatrix.multiplyVector3(currentForward);
-      rotatedForward.normalize();
-
-      let currentDistance = Math.sqrt(
-          currentForward.elements[0] * currentForward.elements[0] +
-          currentForward.elements[1] * currentForward.elements[1] +
-          currentForward.elements[2] * currentForward.elements[2]
-      );
-
-      this.target.set(this.eye); // Set target to eye temporarily
-      this.target.add(rotatedForward.scale(currentDistance)); // Move target along rotated forward
-  }
-
-
-  moveVector.normalize().scale(this.moveSpeed);
-  initialMoveVector.normalize().scale(this.moveSpeed); // Normalize initial move vector too
-
-  let newEye = new Vector3().set(this.eye).add(moveVector); // Calculate potential new eye position
-
-  if (this.okayToMove(this.eye, newEye)) { // Check if move is valid
-      this.eye.add(moveVector);
-      this.target.add(moveVector);
-  } else {
-      // Collision detected, attempt sliding
-
-      let slideVector = new Vector3().set(moveVector); // Start with the original move vector
-
-      // Try sliding along X-axis (horizontal slide)
-      let tempMoveX = new Vector3().set(slideVector);
-      tempMoveX.elements[2] = 0; // Zero out Z component for X-slide attempt
-      let tempNewEyeX = new Vector3().set(this.eye).add(tempMoveX);
-      if (this.okayToMove(this.eye, tempNewEyeX)) {
-          slideVector.set(tempMoveX); // Use X-slide if valid
-      } else {
-          // X-slide also blocked, try sliding along Z-axis (vertical slide in map context)
-          let tempMoveZ = new Vector3().set(moveVector);
-          tempMoveZ.elements[0] = 0; // Zero out X component for Z-slide attempt
-          let tempNewEyeZ = new Vector3().set(this.eye).add(tempMoveZ);
-          if (this.okayToMove(this.eye, tempNewEyeZ)) {
-              slideVector.set(tempMoveZ); // Use Z-slide if valid
-          } else {
-              slideVector.set(new Vector3([0,0,0])); // No slide possible, stop movement completely
-          }
-      }
-
-      this.eye.add(slideVector);
-      this.target.add(slideVector);
-  }
-};
-
-
+  
+  /**
+  * Updates the view matrix based on eye, target, and up vectors.
+  */
+  Camera.prototype.updateViewMatrix = function() {
+    this.viewMatrix.setLookAt(
+        this.eye.elements[0], this.eye.elements[1], this.eye.elements[2],
+        this.target.elements[0], this.target.elements[1], this.target.elements[2],
+        this.up.elements[0], this.up.elements[1], this.up.elements[2]
+    );
+  };
+  
+  /**
+  * Rotates the camera based on mouse movement.
+  * @param {number} deltaX Mouse movement in X direction.
+  * @param {number} deltaY Mouse movement in Y direction.
+  */
+  Camera.prototype.rotate = function(deltaX, deltaY) {
+    let lookSpeed = this.lookSpeed;
+  
+    // Calculate rotation angles based on mouse movement
+    let yaw = deltaX * lookSpeed;   // Yaw (horizontal rotation)
+    let pitch = -deltaY * lookSpeed; // Pitch (vertical rotation)
+  
+    let rotationMatrix = new Matrix4();
+  
+    // Yaw rotation around the Y axis (vertical axis)
+    rotationMatrix.rotate(yaw, 0, 1, 0);
+  
+    // Get the current forward vector
+    let forward = new Vector3([
+        this.target.elements[0] - this.eye.elements[0],
+        this.target.elements[1] - this.eye.elements[1],
+        this.target.elements[2] - this.eye.elements[2]
+    ]);
+  
+    // Rotate the forward vector by yaw
+    forward = rotationMatrix.multiplyVector3(forward);
+  
+    // Pitch rotation around the right axis (horizontal axis)
+    rotationMatrix.setRotate(pitch, 1, 0, 0); // Rotate around X axis for pitch - this is incorrect in world space
+  
+    // To pitch correctly, we need to rotate around the *camera's right* axis.
+    // We can calculate the right axis from the current forward and up vectors.
+    let right = new Vector3();
+    Vector3.cross(forward, this.up, right);
+    right.normalize();
+    rotationMatrix.setRotate(pitch, right.elements[0], right.elements[1], right.elements[2]);
+  
+    // Apply pitch rotation to the forward vector (after yaw rotation)
+    forward = rotationMatrix.multiplyVector3(forward);
+  
+  
+    // Update the target position based on the rotated forward vector
+    this.target.set(this.eye).add(forward);
+  };
+  
+  
+  /**
+  * Checks if the proposed new eye position is okay to move to (not inside a wall).
+  * @param {Vector3} oldEye Current eye position.
+  * @param {Vector3} newEye Proposed new eye position.
+  * @return {boolean} True if it's okay to move, false otherwise.
+  */
+  Camera.prototype.okayToMove = function(oldEye, newEye) {
+    // Define a margin around the camera to prevent getting too close to walls
+    let margin = 0.3; // Adjust this value as needed (smaller value = closer to walls)
+  
+    let map_height = this.map.length;
+    let map_width = this.map[0].length;
+  
+    // Check several points around the new eye position within the margin
+    for (let xOffset = -margin; xOffset <= margin; xOffset += margin) {
+        for (let zOffset = -margin; zOffset <= margin; zOffset += margin) {
+            let checkEye = new Vector3([newEye.elements[0] + xOffset, newEye.elements[1], newEye.elements[2] + zOffset]);
+  
+            // Convert world coordinates to map indices
+            let mapX = Math.floor(checkEye.elements[0] + map_height / 2);
+            let mapZ = Math.floor(checkEye.elements[2] + map_width / 2);
+  
+            // Check bounds and map value
+            if (mapX >= 0 && mapX < map_width && mapZ >= 0 && mapZ < map_height) {
+                if (this.map[mapZ][mapX] > 0) { // Assuming walls are marked with values > 1 (e.g., 2)
+                    return false; // Collision with wall in the margin area
+                }
+            }
+        }
+    }
+  
+    return true; // Okay to move
+  };
+  
+  
+  /**
+  * Moves the camera based on pressed keys (WASDQE) and attempts to slide along walls.
+  */
+  Camera.prototype.move = function() {
+    let forward = new Vector3([
+        this.target.elements[0] - this.eye.elements[0],
+        this.target.elements[1] - this.eye.elements[1],
+        this.target.elements[2] - this.eye.elements[2]
+    ]).normalize();
+  
+    // Project forward vector onto the horizontal plane (y=0)
+    // by setting the y component to 0 and re-normalizing
+    // Use forward.elements[0] and forward.elements[2] directly for horizontal movement
+    let forward_horizontal = new Vector3([
+        forward.elements[0], 0, forward.elements[2]
+    ]).normalize();
+  
+  
+    let right = new Vector3();
+    Vector3.cross(forward, this.up, right);
+    right.normalize();
+  
+    let moveVector = new Vector3([0, 0, 0]);
+    let initialMoveVector = new Vector3([0,0,0]); // Store initial move intent for sliding
+  
+    // Movement (WASD)
+    if (this.keys['w']) {
+        moveVector.add(forward_horizontal);
+        initialMoveVector.add(forward_horizontal);
+    }
+    if (this.keys['s']) {
+        moveVector.sub(forward_horizontal);
+        initialMoveVector.sub(forward_horizontal);
+    }
+    if (this.keys['a']) {
+        moveVector.sub(right);
+        initialMoveVector.sub(right);
+    }
+    if (this.keys['d']) {
+        moveVector.add(right);
+        initialMoveVector.add(right);
+    }
+  
+  
+    // Panning (QE - Horizontal Rotation) - Consider removing or modifying panning with mouse look
+    if (this.keys['q']) { // Pan Left (Q key pans left - rotate)
+        let panRotationMatrix = new Matrix4();
+        panRotationMatrix.setRotate(2, 0, 1, 0); // Rotate 1 degree around Y axis for pan left
+  
+        let currentForward = new Vector3([
+            this.target.elements[0] - this.eye.elements[0],
+            this.target.elements[1] - this.eye.elements[1],
+            this.target.elements[2] - this.eye.elements[2]
+        ]);
+  
+        let rotatedForward = panRotationMatrix.multiplyVector3(currentForward);
+        rotatedForward.normalize();
+  
+        let currentDistance = Math.sqrt(
+            currentForward.elements[0] * currentForward.elements[0] +
+            currentForward.elements[1] * currentForward.elements[1] +
+            currentForward.elements[2] * currentForward.elements[2]
+        );
+  
+        this.target.set(this.eye); // Set target to eye temporarily
+        this.target.add(rotatedForward.scale(currentDistance)); // Move target along rotated forward
+    }
+    if (this.keys['e']) { // Pan Right (E key pans right - rotate)
+        let panRotationMatrix = new Matrix4();
+        panRotationMatrix.setRotate(-2, 0, 1, 0); // Rotate -1 degree around Y axis for pan right
+  
+        let currentForward = new Vector3([
+            this.target.elements[0] - this.eye.elements[0],
+            this.target.elements[1] - this.eye.elements[1],
+            this.target.elements[2] - this.eye.elements[2]
+        ]);
+  
+        let rotatedForward = panRotationMatrix.multiplyVector3(currentForward);
+        rotatedForward.normalize();
+  
+        let currentDistance = Math.sqrt(
+            currentForward.elements[0] * currentForward.elements[0] +
+            currentForward.elements[1] * currentForward.elements[1] +
+            currentForward.elements[2] * currentForward.elements[2]
+        );
+  
+        this.target.set(this.eye); // Set target to eye temporarily
+        this.target.add(rotatedForward.scale(currentDistance)); // Move target along rotated forward
+    }
+  
+  
+    moveVector.normalize().scale(this.moveSpeed);
+    initialMoveVector.normalize().scale(this.moveSpeed); // Normalize initial move vector too
+  
+    let newEye = new Vector3().set(this.eye).add(moveVector); // Calculate potential new eye position
+  
+    if (this.okayToMove(this.eye, newEye)) { // Check if move is valid
+        this.eye.add(moveVector);
+        this.target.add(moveVector);
+    } else {
+        // Collision detected, attempt sliding
+  
+        let slideVector = new Vector3().set(moveVector); // Start with the original move vector
+  
+        // Try sliding along X-axis (horizontal slide)
+        let tempMoveX = new Vector3().set(slideVector);
+        tempMoveX.elements[2] = 0; // Zero out Z component for X-slide attempt
+        let tempNewEyeX = new Vector3().set(this.eye).add(tempMoveX);
+        if (this.okayToMove(this.eye, tempNewEyeX)) {
+            slideVector.set(tempMoveX); // Use X-slide if valid
+        } else {
+            // X-slide also blocked, try sliding along Z-axis (vertical slide in map context)
+            let tempMoveZ = new Vector3().set(moveVector);
+            tempMoveZ.elements[0] = 0; // Zero out X component for Z-slide attempt
+            let tempNewEyeZ = new Vector3().set(this.eye).add(tempMoveZ);
+            if (this.okayToMove(this.eye, tempNewEyeZ)) {
+                slideVector.set(tempMoveZ); // Use Z-slide if valid
+            } else {
+                slideVector.set(new Vector3([0,0,0])); // No slide possible, stop movement completely
+            }
+        }
+  
+        this.eye.add(slideVector);
+        this.target.add(slideVector);
+    }
+  };
+  
 `````
 
 lib/cuon-utils.js
@@ -2287,7 +2287,250 @@ var Matrix4 = function(opt_src) {
 
 `````
 
-src/asgn3.js
+src/Sphere.js
+`````javascript
+//note to grader; used Gemini to make sphere class
+/*
+used this prompt:
+you are an expert WebGL programmer, here is the code for a class that draws a cube:
+
+(cube code here)
+
+Please write similar code to render a unit sphere. Include longitude and latitude parameters for tessellation
+*/
+
+// additionally, asked it to turn the triangles counterclockwise and to do shading.
+class Sphere {
+   constructor(longitudeBands, latitudeBands, sphereToCopy = null) {
+       this.type = 'sphere';
+       this.color = [1.0, 0.5, 0.0, 1.0]; // Example: Orange color, you can change it
+       this.matrix = new Matrix4();
+       this.longitudeBands = longitudeBands;
+       this.latitudeBands = latitudeBands;
+       this.startLongitude = 0;          // Default start longitude, now a property
+       this.endLongitude = 2 * Math.PI;   // Default end longitude, now a property
+       this.vertices = [];
+       this.normals = [];
+       this.indices = [];
+       this.indexedVertices = [];
+       this.indexedNormals = [];
+
+       if (sphereToCopy instanceof Sphere) {
+           // Deep copy constructor
+           this.copy(sphereToCopy);
+       } else {
+           // Regular constructor
+           this.initSphere();
+       }
+   }
+
+   copy(sphereToCopy) {
+       if (!sphereToCopy) { // Add check for null or undefined sphereToCopy
+           console.error("Error: sphereToCopy is null or undefined in copy constructor.");
+           return; // Or throw an error, or initialize as a default sphere.
+       }
+       if (!sphereToCopy.matrix || !sphereToCopy.matrix.elements) { // Add check for null or undefined matrix or elements
+           console.error("Error: sphereToCopy.matrix or sphereToCopy.matrix.elements is invalid in copy constructor.");
+           return; // Or throw an error, or initialize as a default matrix.
+       }
+
+       this.type = sphereToCopy.type;
+       this.color = [...sphereToCopy.color]; // Create a new array for color
+       // Create a new Matrix4 object and set its elements to avoid reference issues.
+       this.matrix = new Matrix4(sphereToCopy.matrix);
+       this.longitudeBands = sphereToCopy.longitudeBands;
+       this.latitudeBands = sphereToCopy.latitudeBands;
+       this.startLongitude = sphereToCopy.startLongitude; // Copy startLongitude property
+       this.endLongitude = sphereToCopy.endLongitude;     // Copy endLongitude property
+       this.vertices = [...sphereToCopy.vertices]; // Create a new array for vertices
+       this.normals = [...sphereToCopy.normals]; // Create a new array for normals
+       this.indices = [...sphereToCopy.indices]; // Create a new array for indices
+       this.indexedVertices = [...sphereToCopy.indexedVertices]; // Create a new array for indexedVertices
+       this.indexedNormals = [...sphereToCopy.indexedNormals]; // Create a new array for indexedNormals
+   }
+
+   initSphere() {
+       let vertices = [];
+       let normals = [];
+       let indices = [];
+
+       for (let latNumber = 0; latNumber <= this.latitudeBands; latNumber++) {
+           let theta = latNumber * Math.PI / this.latitudeBands;
+           let sinTheta = Math.sin(theta);
+           let cosTheta = Math.cos(theta);
+
+           for (let longNumber = 0; longNumber <= this.longitudeBands; longNumber++) {
+               // Modified longitude calculation to use start and end longitude properties
+               let phi = this.startLongitude + (longNumber * (this.endLongitude - this.startLongitude) / this.longitudeBands);
+               let sinPhi = Math.sin(phi);
+               let cosPhi = Math.cos(phi);
+
+               let x = cosPhi * sinTheta;
+               let y = sinPhi * sinTheta;
+               let z = cosTheta;
+
+               vertices.push(x);
+               vertices.push(y);
+               vertices.push(z);
+
+               normals.push(x);
+               normals.push(y);
+               normals.push(z); // For a unit sphere, vertex normal is the same as vertex position
+           }
+       }
+
+       for (let latNumber = 0; latNumber < this.latitudeBands; latNumber++) {
+           for (let longNumber = 0; longNumber < this.longitudeBands; longNumber++) {
+               let first = (latNumber * (this.longitudeBands + 1)) + longNumber;
+               let second = first + this.longitudeBands + 1;
+
+               indices.push(first);
+               indices.push(first + 1);
+               indices.push(second);
+
+               indices.push(first + 1);
+               indices.push(second + 1);
+               indices.push(second);
+           }
+       }
+       this.indexedVertices = [];
+       this.indexedNormals = [];
+       for (let i = 0; i < indices.length; i++) {
+           let index = indices[i];
+           this.indexedVertices.push(vertices[index * 3]);
+           this.indexedVertices.push(vertices[index * 3 + 1]);
+           this.indexedVertices.push(vertices[index * 3 + 2]);
+           this.indexedNormals.push(normals[index * 3]);
+           this.indexedNormals.push(normals[index * 3 + 1]);
+           this.indexedNormals.push(normals[index * 3 + 2]);
+       }
+   }
+
+
+   render() {
+       gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+
+       for (let i = 0; i < this.indexedVertices.length; i += 9) {
+           let v1 = [this.indexedVertices[i], this.indexedVertices[i+1], this.indexedVertices[i+2]];
+           let v2 = [this.indexedVertices[i+3], this.indexedVertices[i+4], this.indexedVertices[i+5]];
+           let v3 = [this.indexedVertices[i+6], this.indexedVertices[i+7], this.indexedVertices[i+8]];
+
+           // Calculate shading factor based on vertex X position (side to side)
+           let shadingFactor = (v2[1] + 1) / 2; // Map x from [-1, 1] to [0, 1]
+
+           // Calculate brighter color
+           let brighterColor = this.color.map(c => Math.min(c * 0.875, 1.0)); // Increased brightness factor to 1.8
+
+           // Interpolate between original color and brighter color
+           let rgba = this.color.map((originalC, index) => originalC + (brighterColor[index] - originalC) * shadingFactor);
+
+
+           gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+           drawTriangle3D([
+               v1[0], v1[1], v1[2],
+               v2[0], v2[1], v2[2],
+               v3[0], v3[1], v3[2]
+           ]);
+       }
+   }
+
+   calculateFaceNormal(v1, v2, v3) {
+       let a = subtractVectors(v2, v1);
+       let b = subtractVectors(v3, v1);
+       let normal = crossProduct(a, b);
+       return normalizeVector(normal);
+   }
+}
+
+// Helper vector functions (you might already have these or similar)
+function subtractVectors(v1, v2) {
+   return [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]];
+}
+
+function crossProduct(v1, v2) {
+   return [
+       v1[1] * v2[2] - v1[2] * v2[1],
+       v1[2] * v2[0] - v1[0] * v2[2],
+       v1[0] * v2[1] - v1[1] * v2[0]
+   ];
+}
+
+function normalizeVector(v) {
+   let length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+   if (length > 0) {
+       return [v[0] / length, v[1] / length, v[2] / length]; // Corrected normalizeVector to return 3 components if needed
+   } else {
+       return [0, 0, 0]; // Avoid division by zero
+   }
+}
+
+
+`````
+
+src/Triangle.js
+`````javascript
+class Triangle {
+    constructor() {
+        this.type = 'triangle';
+        this.position = [0.0, 0.0, 0.0, 0.0];
+        this.color = [1.0, 1.0, 1.0, 1.0];
+        this.size = 5.0;
+        this.segments = 0;
+    }
+ }
+  
+  var g_vertexBuffer=null;
+  var g_uvBuffer=null;
+  var g_normalBuffer=null;
+  
+ function initTriangle3DUVNormal() {
+   g_vertexBuffer = gl.createBuffer();
+   if (!g_vertexBuffer) {
+     console.log('Failed to create the buffer object');
+     return -1;
+   }
+   gl.bindBuffer(gl.ARRAY_BUFFER, g_vertexBuffer);
+   gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
+   gl.enableVertexAttribArray(a_Position);   
+   
+   g_uvBuffer = gl.createBuffer();
+     if (!g_uvBuffer) {
+         console.log('Failed to create the buffer object');
+         return -1;
+     }
+     gl.bindBuffer(gl.ARRAY_BUFFER, g_uvBuffer);
+     gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, 0, 0);
+     gl.enableVertexAttribArray(a_UV);
+     
+     g_normalBuffer = gl.createBuffer();
+     if (!g_normalBuffer) {
+       console.log('Failed to create the buffer object');
+       return -1;
+     }
+     gl.bindBuffer(gl.ARRAY_BUFFER, g_normalBuffer);
+     gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
+     gl.enableVertexAttribArray(a_Normal);
+ }
+  
+  
+ function drawTriangle3DUVNormal(vertices, uv, normals) {
+     var n = vertices.length/3;
+     if (g_vertexBuffer == null){
+         initTriangle3DUVNormal();
+     }
+     gl.bindBuffer(gl.ARRAY_BUFFER, g_vertexBuffer);
+     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+     gl.bindBuffer(gl.ARRAY_BUFFER, g_uvBuffer);
+     gl.bufferData(gl.ARRAY_BUFFER, uv, gl.DYNAMIC_DRAW);
+     gl.bindBuffer(gl.ARRAY_BUFFER, g_normalBuffer);
+     gl.bufferData(gl.ARRAY_BUFFER, normals, gl.DYNAMIC_DRAW);
+     gl.drawArrays(gl.TRIANGLES, 0, n);
+ 
+  }
+
+`````
+
+src/asgn4.js
 `````javascript
 // ColoredPoint.js (c) 2012 matsuda
 // Vertex shader program
@@ -2296,27 +2539,24 @@ src/asgn3.js
 // 
 
 // NOTE FOR GRADER:
-// # cse160-asgn3
-// heavily referenced video playlist. and used Gemini
-
-// Wow!
-// Mine Maze: Try to find all the diamonds in the maze in the shortest time possible!
-
+// # cse160-asgn4
+// heavily referenced video playlist. and used Gemini AI studio
 
 var VSHADER_SOURCE =`
   precision mediump float;
   attribute vec4 a_Position;
   attribute vec2 a_UV;
+  attribute vec3 a_Normal;
   varying vec2 v_UV;
+  varying vec3 v_Normal;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-    //gl_Position =  u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-
     v_UV = a_UV;
+    v_Normal = a_Normal;
   }`
 
 // Fragment shader program
@@ -2326,8 +2566,11 @@ var FSHADER_SOURCE =`
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
+  varying vec3 v_Normal;
   void main() {
-  if (u_whichTexture == -2){
+  if (u_whichTexture == -3){
+    gl_FragColor = vec4((v_Normal+1.0)/2.0,1.0);
+} else if (u_whichTexture == -2){
     gl_FragColor = u_FragColor;
 } else if (u_whichTexture == -1){
     gl_FragColor = vec4(v_UV, 1.0,1.0);
@@ -2347,11 +2590,15 @@ let u_FragColor;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let u_Sampler0;
+let u_whichTexture;
 let u_ProjectionMatrix;
 let u_ViewMatrix;
 let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
+let g_map;
+let g_globalAngle = 0;
+let g_score = 0;
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -2363,7 +2610,12 @@ function setupWebGL(){
       console.log('Failed to get the rendering context for WebGL');
       return;
     }
-    g_camera = new Camera(canvas, g_map);
+    let mazeResult = generateMaze(32, 32);
+    g_map = mazeResult.maze;
+    const pos = mazeResult.startPosition;
+    var eye = new Vector3([pos[1]-16, 1.75, pos[0]-16]);
+    logMaze(g_map);
+    g_camera = new Camera(canvas, g_map, eye);
     g_camera.updateViewMatrix();
 }
 
@@ -2384,6 +2636,12 @@ function connectVariablesToGLSL(){
   a_UV = gl.getAttribLocation(gl.program, 'a_UV');
   if (a_UV < 0) {
     console.log('Failed to get the storage location of a_UV');
+    return;
+  }
+  
+  a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
+  if (a_Normal < 0) {
+    console.log('Failed to get the storage location of a_Normal');
     return;
   }
   
@@ -2435,45 +2693,82 @@ function connectVariablesToGLSL(){
   
 }
 
-let g_score = 0;
-let g_globalAngle = 0;
-var g_map = [
-  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],  
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],  
-];
+/*
+NOTE TO GRADER: used AI to generate maze generation code with prompt
+Write a generateMaze function that takes a height and width and returns a 2D array that is a maze.
+The values should be 0 for corridors. The corridors should be 2 wide. The cells that are walls 
+should be of value 2. There should be surrounding walls. Write this in javascript.
+Also, write a log maze into the function.
+*/
+
+function generateMaze(targetHeight, targetWidth) {
+  // Calculate adjusted height and width to get close to the target corridor dimensions
+  const adjustedHeight = Math.floor(targetHeight / 2); // Roughly half for corridors
+  const adjustedWidth = Math.floor(targetWidth / 2);   // Roughly half for corridors
+
+  // Ensure adjusted dimensions are at least 1 to avoid empty maze
+  const mazeHeight = Math.max(3, 2 * adjustedHeight + 1); // Ensure odd and at least 3
+  const mazeWidth = Math.max(3, 2 * adjustedWidth + 1);   // Ensure odd and at least 3
+
+  // Initialize maze with walls (1) - Changed to 1
+  const maze = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(1));
+  const corridorCells = []; // Array to store coordinates of corridor cells
+
+  function carvePath(y, x) {
+      maze[y][x] = 0; // Mark current cell as corridor
+      corridorCells.push([y, x]); // Add corridor cell coordinates
+
+      const directions = [[0, 2], [0, -2], [2, 0], [-2, 0]]; // Possible directions to move (step of 2)
+      shuffleArray(directions); // Randomize direction order
+
+      for (const [dy, dx] of directions) {
+          const nextY = y + dy;
+          const nextX = x + dx;
+
+          // Wall check now against 1 - Changed to 1
+          if (nextY > 0 && nextY < mazeHeight - 1 && nextX > 0 && nextX < mazeWidth - 1 && maze[nextY][nextX] === 1) {
+              maze[y + dy / 2][x + dx / 2] = 0; // Carve path between cells
+              corridorCells.push([y + dy / 2, x + dx / 2]); // Add carved path cell as corridor
+              carvePath(nextY, nextX); // Recursive call
+          }
+      }
+  }
+
+  // Start carving path from a random cell inside the maze (odd indices to ensure corridors are 2 wide)
+  const startY = 1 + 2 * Math.floor(Math.random() * adjustedHeight);
+  const startX = 1 + 2 * Math.floor(Math.random() * adjustedWidth);
+
+  carvePath(startY, startX);
+
+  // Select a random starting position from the corridor cells
+  const startIndex = Math.floor(Math.random() * corridorCells.length);
+  const startPosition = corridorCells[startIndex];
+
+  return { maze, startPosition };
+}
+
+// Helper function to shuffle array (Fisher-Yates shuffle)
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function logMaze(maze) {
+  for (let y = 0; y < maze.length; y++) {
+      let rowStr = "";
+      for (let x = 0; x < maze[y].length; x++) {
+          // Wall check now against 1 in logMaze too - Updated logMaze for clarity
+          rowStr += maze[y][x] === 0 ? "  " : "* ";
+      }
+      console.log(rowStr);
+  }
+}
+
 
 // x, z
-var g_diamonds = [];
+var g_pearls = [];
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
@@ -2551,23 +2846,17 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
-/*
-// TODO:
-2. maze gernation
-*/
-
-
-function drawDiamonds(diamonds) {
-  var diamond = new Diamond();
-  diamond.color = [170/256, 210/255, 229/255, 1.0];
-  diamond.textureNum = -2;
+function drawPearls(pearls) {
+  var pearl = new Sphere();
+  pearl.color = [170/256, 210/255, 229/255, 1.0];
+  pearl.textureNum = -2;
   var n = 0;
-  for (var d=0; d<diamonds.length; d++){
-    diamond.matrix.setIdentity();
-    diamond.matrix.translate(diamonds[d][0], 2, diamonds[d][1]);
-    diamond.matrix.rotate(g_seconds*30, 0, 1, 0);
-    diamond.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
-    diamond.renderFast();
+  for (var d=0; d<pearls.length; d++){
+    pearl.matrix.setIdentity();
+    pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
+    pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
+    pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
+    pearl.renderFast();
   }
 }
 
@@ -2589,13 +2878,13 @@ function drawMap(map) {
       }
     }
 }
-function collectDiamonds(){
+function collectPearls(){
   x = Math.floor(g_camera.target.elements[0]+0.5);
   z = Math.floor(g_camera.target.elements[2]+0.5);
-  for(var i = 0; i < g_diamonds.length; i++){
-    if (g_diamonds[i][0] == x && g_diamonds[i][1] == z){
+  for(var i = 0; i < g_pearls.length; i++){
+    if (g_pearls[i][0] == x && g_pearls[i][1] == z){
       g_score +=1
-      g_diamonds.splice(i, 1);
+      g_pearls.splice(i, 1);
       return;
     }
   }
@@ -2639,20 +2928,20 @@ function renderAllShapes(){
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
   sky.renderFast();
   
-  if (g_diamonds.length < 30){
+  if (g_pearls.length < 30){
     var x = Math.floor(Math.random() * (32));
     var y = Math.floor(Math.random() * (32));
     if (g_map[y][x] == 0){
-      g_diamonds = g_diamonds.concat([[y-16,x-16]]);
+      g_pearls = g_pearls.concat([[y-16,x-16]]);
     }
   }
   
-  collectDiamonds();
+  collectPearls();
   
-  drawDiamonds(g_diamonds);
+  drawPearls(g_pearls);
 
   var duration = performance.now() - startTime;
-  sendTextToHTML( " Diamonds collected: " + g_score, "score");
+  sendTextToHTML( " Pearls collected: " + g_score, "score");
   sendTextToHTML( " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), "numdot");
   sendTextToHTML( "target x: " + g_camera.target.elements[0] + " z: " + g_camera.target.elements[2], "targetXZ");
   sendTextToHTML( "eye x: " + g_camera.eye.elements[0] + " z: " + g_camera.eye.elements[2], "eyeXZ");
@@ -2669,223 +2958,38 @@ function sendTextToHTML(text, htmlID){
 
 `````
 
-src/Diamond.js
-`````javascript
-class Diamond {
-   constructor() {
-       this.type = 'diamond';
-       this.color = [1.0, 1.0, 1.0, 1.0]; // Base color remains white
-       this.matrix = new Matrix4();
-       this.textureNum = -2; // Color only
-
-       this.diamondVertsXYZ = new Float32Array([
-           // ... (vertex data - same as before) ...
-            // Top pyramid (vertices listed in counter-clockwise order for front-facing)
-           0.0, 1.0, 0.0,  // Top vertex (0)
-           1.0, 0.0, 0.0,  // Right vertex (1)
-           0.0, 0.0, 1.0,  // Front vertex (2)
-
-           0.0, 1.0, 0.0,  // Top vertex (0)
-           0.0, 0.0, 1.0,  // Front vertex (2)
-           -1.0, 0.0, 0.0, // Left vertex (3)
-
-           0.0, 1.0, 0.0,  // Top vertex (0)
-           -1.0, 0.0, 0.0, // Left vertex (3)
-           0.0, 0.0, -1.0, // Back vertex (4)
-
-           0.0, 1.0, 0.0,  // Top vertex (0)
-           0.0, 0.0, -1.0, // Back vertex (4)
-           1.0, 0.0, 0.0,  // Right vertex (1)
-
-           // Bottom pyramid (vertices listed in counter-clockwise order for front-facing)
-           0.0, -1.0, 0.0, // Bottom vertex (5)
-           1.0, 0.0, 0.0,  // Right vertex (1)
-           0.0, 0.0, 1.0,  // Front vertex (2)
-
-           0.0, -1.0, 0.0, // Bottom vertex (5)
-           0.0, 0.0, 1.0,  // Front vertex (2)
-           -1.0, 0.0, 0.0, // Left vertex (3)
-
-           0.0, -1.0, 0.0, // Bottom vertex (5)
-           -1.0, 0.0, 0.0, // Left vertex (3)
-           0.0, 0.0, -1.0, // Back vertex (4)
-
-           0.0, -1.0, 0.0, // Bottom vertex (5)
-           0.0, 0.0, -1.0, // Back vertex (4)
-           1.0, 0.0, 0.0   // Right vertex (1)
-       ]);
-
-       this.diamondVertsUV = new Float32Array([
-           // ... (UV data - same as before) ...
-           // Top pyramid
-           0.5, 1.0,   1.0, 0.0,   0.0, 0.0,
-           0.5, 1.0,   0.0, 0.0,   0.0, 1.0,
-           0.5, 1.0,   0.0, 1.0,   1.0, 1.0,
-           0.5, 1.0,   1.0, 1.0,   1.0, 0.0,
-           // Bottom pyramid
-           0.5, 0.0,   1.0, 1.0,   0.0, 1.0,
-           0.5, 0.0,   0.0, 1.0,   0.0, 0.0,
-           0.5, 0.0,   0.0, 0.0,   1.0, 0.0,
-           0.5, 0.0,   1.0, 0.0,   1.0, 1.0
-       ]);
-   }
-
-   render() { // Basic render function still uses uniform color
-       var rgba = this.color;
-       gl.uniform1i(u_whichTexture, this.textureNum);
-       gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
-       gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-       drawTriangle3DUV(this.diamondVertsXYZ, this.diamondVertsUV);
-   }
-
-   renderFast() {
-       gl.uniform1i(u_whichTexture, this.textureNum);
-       gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
-
-       let vertices = this.diamondVertsXYZ;
-       let uvCoords = this.diamondVertsUV;
-       let n = vertices.length / 3;
-
-       for (let i = 0; i < n; i += 3) {
-           // Get the y-coordinates of the three vertices of the triangle
-           let y1 = vertices[i * 3 + 1];
-           let y2 = vertices[(i + 1) * 3 + 1];
-           let y3 = vertices[(i + 2) * 3 + 1];
-
-           // Apply slight color variation based on triangle index
-           let variationFactor = (i / n) * 1.3; // Vary from 0 to 0.3 as i increases
-           let rgba = [
-               this.color[0] * (1.0 - variationFactor), // Reduce Red slightly
-               this.color[1],                             // Keep Green
-               this.color[2],                             // Keep Blue
-               this.color[3]
-           ];
-
-
-           gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-
-           // Draw each triangle with the calculated color
-           drawTriangle3DUV(
-               vertices.subarray(i * 3 , (i + 3) * 3 ), // Corrected subarray ranges
-               uvCoords.subarray(i * 2 , (i + 3) * 2 )   // Corrected subarray ranges
-           );
-       }
-   }
-}
-
-`````
-
-src/Triangle.js
-`````javascript
-class Triangle {
-   constructor() {
-       this.type = 'triangle';
-       this.position = [0.0, 0.0, 0.0, 0.0];
-       this.color = [1.0, 1.0, 1.0, 1.0];
-       this.size = 5.0;
-       this.segments = 0;
-   }
-
-   render() {
-       var xy = this.position;
-       var rgba = this.color;
-       var size = this.size;
-       gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-       gl.uniform1f(u_Size, size);
-       var d = this.size/200.0;
-       drawTriangle( [xy[0], xy[1], xy[0]+d, xy[1], xy[0], xy[1]+d] );
-   }
-}
-
-function drawTriangle3D(vertices) {
-    var n = vertices.length/3;
-    var vertexBuffer = gl.createBuffer();
-    if (!vertexBuffer) {
-        console.log('Failed to create the buffer object');
-        return -1;
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
-    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
- 
-    gl.enableVertexAttribArray(a_Position);
- 
-    gl.drawArrays(gl.TRIANGLES, 0, n);
-    // so that drawTriangle3DUV can set stuff up again
-    g_vertexBuffer = null;
- }
- 
- var g_vertexBuffer=null;
- var g_uvBuffer=null;
- 
-function initTriangle3DUV() {
-  g_vertexBuffer = gl.createBuffer();
-  if (!g_vertexBuffer) {
-    console.log('Failed to create the buffer object');
-    return -1;
-  }
-  gl.bindBuffer(gl.ARRAY_BUFFER, g_vertexBuffer);
-  gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(a_Position);
-  
-  g_uvBuffer = gl.createBuffer();
-    if (!g_uvBuffer) {
-        console.log('Failed to create the buffer object');
-        return -1;
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, g_uvBuffer);
-    gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(a_UV);
-}
- 
- 
-function drawTriangle3DUV(vertices, uv) {
-    var n = vertices.length/3;
-    if (g_vertexBuffer == null){
-        initTriangle3DUV();
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, g_vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, g_uvBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, uv, gl.DYNAMIC_DRAW);
-    gl.drawArrays(gl.TRIANGLES, 0, n);
-
- }
-
-`````
-
 src/Cube.js
 `````javascript
 class Cube {
-   constructor(segments) {
-       this.type = 'cube';
-       this.color = [1.0, 1.0, 1.0, 1.0];
-       this.matrix = new Matrix4();
-       this.textureNum = 0;
-    
-       this.cubeVertsXYZ = new Float32Array([
-        // xy0 face
-        0.0, 0.0, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0, 0.0,
-        // xy1
-        1.0, 1.0, 1.0,   0.0, 0.0, 1.0,   0.0, 1.0, 1.0,
-        1.0, 0.0, 1.0,   0.0, 0.0, 1.0,   1.0, 1.0, 1.0,
-        // 0yz
-        0.0, 1.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 1.0,
-        // 1yz
-        1.0, 0.0, 0.0,   1.0, 1.0, 1.0,   1.0, 1.0, 0.0,
-        1.0, 0.0, 0.0,   1.0, 0.0, 1.0,   1.0, 1.0, 1.0,
-        // x0z
-        1.0, 0.0, 0.0,   0.0, 0.0, 0.0,   1.0, 0.0, 1.0,
-        0.0, 0.0, 0.0,   0.0, 0.0, 1.0,   1.0, 0.0, 1.0,
-        // x1z face
-        0.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 0.0
-       ]);
-       
-       this.cubeVertsUV = new Float32Array([
-        // xy0 face
+    constructor(segments) {
+        this.type = 'cube';
+        this.color = [1.0, 1.0, 1.0, 1.0];
+        this.matrix = new Matrix4();
+        this.textureNum = 0;
+     
+        this.cubeVertsXYZ = new Float32Array([
+         // xy0 face
+         0.0, 0.0, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0, 0.0,
+         0.0, 0.0, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0, 0.0,
+         // xy1
+         1.0, 1.0, 1.0,   0.0, 0.0, 1.0,   0.0, 1.0, 1.0,
+         1.0, 0.0, 1.0,   0.0, 0.0, 1.0,   1.0, 1.0, 1.0,
+         // 0yz
+         0.0, 1.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 0.0,
+         0.0, 0.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 1.0,
+         // 1yz
+         1.0, 0.0, 0.0,   1.0, 1.0, 1.0,   1.0, 1.0, 0.0,
+         1.0, 0.0, 0.0,   1.0, 0.0, 1.0,   1.0, 1.0, 1.0,
+         // x0z
+         1.0, 0.0, 0.0,   0.0, 0.0, 0.0,   1.0, 0.0, 1.0,
+         0.0, 0.0, 0.0,   0.0, 0.0, 1.0,   1.0, 0.0, 1.0,
+         // x1z face
+         0.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 0.0
+        ]);
+        
+        this.cubeVertsUV = new Float32Array([
+          // xy0 face
         0,0,1,1,0,1,
         0,0,1,0,1,1,
         // xy1
@@ -2903,56 +3007,40 @@ class Cube {
         // x1z face
         0,1,0,0,1,1,
         1,1,0,0,1,0
-       ]);
-   }
-
-   render() {
-       var rgba = this.color;
-       gl.uniform1i(u_whichTexture, this.textureNum);
-       gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
-       // xy0 face
-       gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-       //gl.uniform4f(u_FragColor, 1, 0.5, 1, 1);
-       drawTriangle3DUV([0.0, 0.0, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0, 0.0], [0,0,1,1,0,1]);
-       drawTriangle3DUV([0.0, 0.0, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0, 0.0], [0,0,1,0,1,1]);
-       // xy1
-       gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
-       //gl.uniform4f(u_FragColor, 1, 1, 0, 1);
-       drawTriangle3DUV([1.0, 1.0, 1.0,   0.0, 0.0, 1.0,   0.0, 1.0, 1.0], [1,1,0,0,0,1]);
-       drawTriangle3DUV([1.0, 0.0, 1.0,   0.0, 0.0, 1.0,   1.0, 1.0, 1.0], [1,0,0,0,1,1]);
-       // 0yz
-       gl.uniform4f(u_FragColor, rgba[0]*0.8, rgba[1]*0.8, rgba[2]*0.8, rgba[3]);
-       //gl.uniform4f(u_FragColor, 1, 1, 1, 1);
-       drawTriangle3DUV([0.0, 1.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 0.0], [1,1,0,0,1,0]);
-       drawTriangle3DUV([0.0, 0.0, 1.0,   0.0, 0.0, 0.0,   0.0, 1.0, 1.0], [0,1,0,0,1,1]);
-       // 1yz
-       gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
-       //gl.uniform4f(u_FragColor, 1, 0, 0, 1);
-       drawTriangle3DUV([1.0, 0.0, 0.0,   1.0, 1.0, 1.0,   1.0, 1.0, 0.0], [0,0,1,1,1,0]);
-       drawTriangle3DUV([1.0, 0.0, 0.0,   1.0, 0.0, 1.0,   1.0, 1.0, 1.0], [0,0,0,1,1,1]);
-       // x0z
-       gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
-       //gl.uniform4f(u_FragColor, 1, 0, 1, 1);
-       drawTriangle3DUV([1.0, 0.0, 0.0,   0.0, 0.0, 0.0,   1.0, 0.0, 1.0], [1,0,0,0,1,1]);
-       drawTriangle3DUV([0.0, 0.0, 0.0,   0.0, 0.0, 1.0,   1.0, 0.0, 1.0], [0,0,0,1,1,1]);
-       // x1z face
-       gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
-       //gl.uniform4f(u_FragColor, 0, 0, 1, 1);
-       drawTriangle3DUV([0.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 1.0], [0,1,0,0,1,1]);
-       drawTriangle3DUV([1.0, 1.0, 1.0,   0.0, 1.0, 0.0,   1.0, 1.0, 0.0], [1,1,0,0,1,0]);
-
-   }
-   
-   renderFast() {
-    var rgba = this.color;
-    gl.uniform1i(u_whichTexture, this.textureNum);
-    gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
-    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-    drawTriangle3DUV(this.cubeVertsXYZ, this.cubeVertsUV);
-   }
-   
-   
-}
+        ]);
+        
+        this.cubeVertsNormal = new Float32Array([
+            // xy0 face
+          0.0, 0.0, -1.0,   0.0, 0.0, -1.0,   0.0, 0.0, -1.0,
+          0.0, 0.0, -1.0,   0.0, 0.0, -1.0,   0.0, 0.0, -1.0,
+          // xy1
+          0.0, 0.0, 1.0,   0.0, 0.0, 1.0,   0.0, 0.0, 1.0,
+          0.0, 0.0, 1.0,   0.0, 0.0, 1.0,   0.0, 0.0, 1.0,
+          // 0yz
+          -1.0, 0.0, 0.0,   -1.0, 0.0, 0.0,   -1.0, 0.0, 0.0,
+          -1.0, 0.0, 0.0,   -1.0, 0.0, 0.0,   -1.0, 0.0, 0.0,
+          // 1yz
+          1.0, 0.0, 0.0,   1.0, 0.0, 0.0,   1.0, 0.0, 0.0,
+          1.0, 0.0, 0.0,   1.0, 0.0, 0.0,   1.0, 0.0, 0.0,
+          // x0z
+          0.0, -1.0, 0.0,   0.0, -1.0, 0.0,   0.0, -1.0, 0.0,
+          0.0, -1.0, 0.0,   0.0, -1.0, 0.0,   0.0, -1.0, 0.0,
+          // x1z face
+          0.0, 1.0, 0.0,   0.0, 1.0, 0.0,   0.0, 1.0, 0.0,
+          0.0, 1.0, 0.0,   0.0, 1.0, 0.0,   0.0, 1.0, 0.0
+        ]);
+    }
+    
+    renderFast() {
+     var rgba = this.color;
+     gl.uniform1i(u_whichTexture, this.textureNum);
+     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+     drawTriangle3DUVNormal(this.cubeVertsXYZ, this.cubeVertsUV, this.cubeVertsNormal);
+    }
+    
+    
+ }
 
 `````
 

@@ -313,7 +313,7 @@ function tick() {
 }
 
 function drawPearls(pearls) {
-  var pearl = new Sphere();
+  var pearl = new Sphere(20, 20);
   pearl.color = [170/256, 210/255, 229/255, 1.0];
   pearl.textureNum = -2;
   var n = 0;
