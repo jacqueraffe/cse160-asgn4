@@ -83,9 +83,9 @@ class Sphere {
            this.indexedVertices.push(vertices[index * 3 + 1]);
            this.indexedVertices.push(vertices[index * 3]);
            this.indexedVertices.push(vertices[index * 3 + 2]);
-           this.indexedNormals.push(-normals[index * 3 + 1]);
-           this.indexedNormals.push(-normals[index * 3]);
-           this.indexedNormals.push(-normals[index * 3 + 2]);
+           this.indexedNormals.push(normals[index * 3 + 1]);
+           this.indexedNormals.push(normals[index * 3]);
+           this.indexedNormals.push(normals[index * 3 + 2]);
            this.indexedUVs.push(uvs[index * 2]); // Store indexed UV coordinates
            this.indexedUVs.push(uvs[index * 2 + 1]);
        }

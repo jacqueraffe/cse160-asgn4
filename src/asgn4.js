@@ -50,14 +50,14 @@ var FSHADER_SOURCE =`
   } else {
     gl_FragColor = vec4(1,0.2,0.2,1);
   }
-  vec3 lightVector = vec3(v_VertPos)-u_lightPos;
+  vec3 lightVector = u_lightPos-vec3(v_VertPos);
   float r = length(lightVector)*0.1;
   // N dot L
   vec3 L = normalize(lightVector);
   vec3 N = normalize(v_Normal);
   float nDotL = max(dot(N,L), 0.0);
   
-  vec3 R = reflect(L, N);
+  vec3 R = reflect(-L, N);
   
   vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
   
