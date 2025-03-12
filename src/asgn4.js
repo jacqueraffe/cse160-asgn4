@@ -36,11 +36,16 @@ var FSHADER_SOURCE =`
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
   uniform vec3 u_lightPos;
+  uniform bool u_spotLightOn;
+  uniform vec3 u_spotLightDirection;
+  uniform float u_spotLightInnerLimit;
+  uniform float u_spotLightOuterLimit;
   uniform vec3 u_lightColor;
   uniform vec3 u_cameraPos;
   uniform bool u_lightOn;
   varying vec3 v_Normal;
   varying vec4 v_VertPos;
+  
   void main() {
   if (u_whichTexture == -3){
     gl_FragColor = vec4((v_Normal+1.0)/2.0,1.0);
@@ -59,18 +64,23 @@ var FSHADER_SOURCE =`
   vec3 L = normalize(lightVector);
   vec3 N = normalize(v_Normal);
   float nDotL = max(dot(N,L), 0.0);
-  
   vec3 R = reflect(-L, N);
-  
   vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
-  
   float specular = pow(max(dot(E,R), 0.0), 30.0);
   
   vec3 diffuse = vec3(gl_FragColor) * nDotL *0.7;
   vec3 ambient = vec3(gl_FragColor) * 0.3;
   if (u_lightOn){
-    gl_FragColor = vec4((specular+diffuse+ambient)*u_lightColor, 1.0);
-  } 
+    if(u_spotLightOn){
+      vec3 lightDirection = normalize(u_spotLightDirection);
+      float dotFromDirection = dot(-L, -lightDirection);
+      float limitRange = u_spotLightInnerLimit - u_spotLightOuterLimit;
+      float inLight = clamp((dotFromDirection - u_spotLightOuterLimit) / limitRange, 0.0, 1.0);
+      gl_FragColor = vec4(((specular+diffuse)*inLight+ambient)*u_lightColor, 1.0);
+    } else {
+     gl_FragColor = vec4((specular+diffuse+ambient)*u_lightColor, 1.0);
+    }
+  }
 }`
   
 //Global Vars
@@ -155,6 +165,12 @@ function connectVariablesToGLSL(){
    return;
  }
  
+ u_spotLightDirection = gl.getUniformLocation(gl.program, 'u_spotLightDirection');
+ if (!u_spotLightDirection) {
+   console.log('Failed to get the storage location of u_spotLightDirection');
+   return;
+ }
+ 
  u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
   if (!u_cameraPos) {
     console.log('Failed to get the storage location of u_cameraPos');
@@ -164,6 +180,24 @@ function connectVariablesToGLSL(){
  u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
   if (!u_lightPos) {
     console.log('Failed to get the storage location of u_lightPos');
+    return;
+  }
+  
+  u_spotLightInnerLimit = gl.getUniformLocation(gl.program, 'u_spotLightInnerLimit');
+  if (!u_spotLightInnerLimit) {
+    console.log('Failed to get the storage location of u_spotLightInnerLimit');
+    return;
+  }
+  
+  u_spotLightOuterLimit = gl.getUniformLocation(gl.program, 'u_spotLightOuterLimit');
+  if (!u_spotLightOuterLimit) {
+    console.log('Failed to get the storage location of u_spotLightOuterLimit');
+    return;
+  }
+  
+  u_spotLightOn = gl.getUniformLocation(gl.program, 'u_spotLightOn');
+  if (!u_spotLightOn) {
+    console.log('Failed to get the storage location of u_spotLightOn');
     return;
   }
   
@@ -299,6 +333,10 @@ var g_pearls = [];
 let g_lightPos = [0,3,-2];
 let g_lightColor = [1, 1, 1];
 let g_lightOn = true;
+let g_spotLightOn = true;
+let g_spotLightDirection = [1, 1, 1];
+let g_spotLightInnerLimit = 10;
+let g_spotLightOuterLimit = 20;
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
@@ -309,6 +347,13 @@ function addActionForHtmlUI(){
   document.getElementById('animateLightOff').onclick = function() {g_animateLight = false;};
   document.getElementById('normalsOn').onclick = function() {g_normalsOn = true;};
   document.getElementById('normalsOff').onclick = function() {g_normalsOn = false;};
+  document.getElementById('spotLightOn').onclick = function() {g_spotLightOn = true;};
+  document.getElementById('spotLightOff').onclick = function() {g_spotLightOn = false;};
+  document.getElementById("spotLightInnerLimitSlide").addEventListener("mousemove", function() {g_spotLightInnerLimit = this.value; renderAllShapes(); });
+  document.getElementById("spotLightOuterLimitSlide").addEventListener("mousemove", function() {g_spotLightOuterLimit = this.value; renderAllShapes(); });
+  document.getElementById("spotLightSlideX").addEventListener("mousemove", function() {g_spotLightDirection[0] = this.value/100;renderAllShapes(); });
+  document.getElementById("spotLightSlideY").addEventListener("mousemove", function() {g_spotLightDirection[1] = this.value/100;renderAllShapes(); });
+  document.getElementById("spotLightSlideZ").addEventListener("mousemove", function() {g_spotLightDirection[2] = this.value/100;renderAllShapes(); });
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
   document.getElementById("lightSlideX").addEventListener("mousemove", function() {g_lightPos[0] = this.value/100;renderAllShapes(); });
   document.getElementById("lightSlideY").addEventListener("mousemove", function() {g_lightPos[1] = this.value/100;renderAllShapes(); });
@@ -463,11 +508,16 @@ function renderAllShapes(){
   projMat.setPerspective(30, canvas.width/canvas.height, 0.1, 100);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
   
+  
+  gl.uniform3fv(u_spotLightDirection, g_spotLightDirection);
+  gl.uniform1f(u_spotLightInnerLimit, Math.cos(g_spotLightInnerLimit*Math.PI/180));
+  gl.uniform1f(u_spotLightOuterLimit, Math.cos(g_spotLightOuterLimit*Math.PI/180));
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
   var eye = g_camera.eye.elements;
   gl.uniform3f(u_cameraPos, eye[0], eye[1], eye[2]);
   gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
   gl.uniform1f(u_lightOn, g_lightOn);
+  gl.uniform1f(u_spotLightOn, g_spotLightOn);
   
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
