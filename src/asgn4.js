@@ -5,13 +5,8 @@
 // 
 
 // NOTE FOR GRADER:
-// # cse160-asgn3
+// # cse160-asgn4
 // heavily referenced video playlist. and used Gemini AI studio
-
-// Mine Maze: Try to find all the diamonds in the maze in the shortest time possible!
-// game element; walk through diamonds and watch your score go up!
-// wow factor: randomly generated maze
-
 
 var VSHADER_SOURCE =`
   precision mediump float;
@@ -24,8 +19,6 @@ var VSHADER_SOURCE =`
   uniform mat4 u_ProjectionMatrix;
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-    //gl_Position =  u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
-
     v_UV = a_UV;
   }`
 
@@ -63,6 +56,7 @@ let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
 let g_map;
+let g_globalAngle = 0;
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -145,8 +139,6 @@ function connectVariablesToGLSL(){
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
   
 }
-
-let g_globalAngle = 0;
 
 function addActionForHtmlUI(){
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
@@ -243,6 +235,12 @@ function renderAllShapes(){
   sky.textureNum = 0;
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
   sky.renderFast();
+  
+  var obj = new Cube();
+  obj.color = [100/256, 100/255, 100/255, 1.0];
+  obj.matrix.translate(-10, 0, 0);
+  obj.textureNum = -2;
+  obj.renderFast();
 
   var duration = performance.now() - startTime;
   sendTextToHTML( " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), "numdot");
