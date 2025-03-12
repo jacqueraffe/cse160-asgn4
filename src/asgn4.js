@@ -20,10 +20,11 @@ var VSHADER_SOURCE =`
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
+  uniform mat4 u_NormalMatrix;
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
     v_UV = a_UV;
-    v_Normal = a_Normal;
+    v_Normal = normalize(vec3(u_NormalMatrix*vec4(a_Normal,1)));
     v_VertPos = u_ModelMatrix * a_Position;
   }`
 
@@ -206,6 +207,12 @@ function connectVariablesToGLSL(){
   u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
   if (!u_GlobalRotateMatrix) {
     console.log('Failed to get the storage location of u_GlobalRotateMatrix');
+    return;
+  }
+  
+  u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix');
+  if (!u_NormalMatrix) {
+    console.log('Failed to get the storage location of u_NormalMatrix');
     return;
   }
   
@@ -405,13 +412,13 @@ function drawPearls(pearls) {
     if (d%2 == 0){
       pearl.matrix.setIdentity();
       pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
-      //pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
+      pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
       pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
       pearl.renderFast();
     } else {
       cube.matrix.setIdentity();
       cube.matrix.translate(pearls[d][0], 2, pearls[d][1]);
-      //cube.matrix.rotate(g_seconds*30, 0, 1, 0);
+      cube.matrix.rotate(g_seconds*30, 0, 1, 0);
       cube.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
       cube.renderFast();
     }

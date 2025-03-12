@@ -14,6 +14,7 @@ class Sphere {
        this.type = 'sphere';
        this.color = [1.0, 0.5, 0.0, 1.0]; // Example: Orange color, you can change it
        this.matrix = new Matrix4();
+       this.normalMatrix = new Matrix4();
        this.longitudeBands = longitudeBands;
        this.latitudeBands = latitudeBands;
        this.startLongitude = 0;          // Default start longitude, now a property
@@ -92,8 +93,10 @@ class Sphere {
    }
    renderFast() {
        var rgba = this.color;
+       this.normalMatrix.setInverseOf(this.matrix).transpose();
        gl.uniform1i(u_whichTexture, this.textureNum);
        gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+       gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements);
        gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
        drawTriangle3DUVNormal(
            new Float32Array(this.indexedVertices),
