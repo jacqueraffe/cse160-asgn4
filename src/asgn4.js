@@ -35,6 +35,7 @@ var FSHADER_SOURCE =`
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
   uniform vec3 u_lightPos;
+  uniform vec3 u_lightColor;
   uniform vec3 u_cameraPos;
   varying vec3 v_Normal;
   varying vec4 v_VertPos;
@@ -65,7 +66,7 @@ var FSHADER_SOURCE =`
   
   vec3 diffuse = vec3(gl_FragColor) * nDotL *0.7;
   vec3 ambient = vec3(gl_FragColor) * 0.3;
-  gl_FragColor = vec4(specular+diffuse+ambient, 1.0);
+  gl_FragColor = vec4((specular+diffuse)*u_lightColor+ambient, 1.0);
   
 }`
   
@@ -83,6 +84,7 @@ let u_ProjectionMatrix;
 let u_ViewMatrix;
 let u_lightPos;
 let u_cameraPos;
+let u_lightColor;
 let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
@@ -181,6 +183,12 @@ function connectVariablesToGLSL(){
     return;
   }
   
+  u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+  if (!u_lightColor) {
+    console.log('Failed to get the storage location of u_lightColor');
+    return;
+  }
+  
   u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
   if (!u_ViewMatrix) {
     console.log('Failed to get the storage location of u_ViewMatrix');
@@ -274,6 +282,7 @@ function logMaze(maze) {
 // x, z
 var g_pearls = [];
 let g_lightPos = [0,3,-2];
+let g_lightColor = [1, 1, 0];
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
@@ -286,7 +295,9 @@ function addActionForHtmlUI(){
   document.getElementById("lightSlideX").addEventListener("mousemove", function() {g_lightPos[0] = this.value/100;renderAllShapes(); });
   document.getElementById("lightSlideY").addEventListener("mousemove", function() {g_lightPos[1] = this.value/100;renderAllShapes(); });
   document.getElementById("lightSlideZ").addEventListener("mousemove", function() {g_lightPos[2] = this.value/100;renderAllShapes(); });
-  
+  document.getElementById("lightSlideRed").addEventListener("mousemove", function() {g_lightColor[0] = this.value/255; renderAllShapes(); });
+  document.getElementById("lightSlideGreen").addEventListener("mousemove", function() {g_lightColor[1]= this.value/255; renderAllShapes(); });
+  document.getElementById("lightSlideBlue").addEventListener("mousemove", function() {g_lightColor[2] = this.value/255; renderAllShapes(); });
 }
 
 function updateBlock(adding, map){
@@ -438,6 +449,8 @@ function renderAllShapes(){
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
   var eye = g_camera.eye.elements;
   gl.uniform3f(u_cameraPos, eye[0], eye[1], eye[2]);
+  gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
+
   
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
@@ -483,7 +496,7 @@ function renderAllShapes(){
   drawPearls(g_pearls);
   
   var light = new Cube();
-  light.color = [2,2,0,1];
+  light.color = g_lightColor;
   light.textureNum = -2;
   light.matrix.translate(g_lightPos[0], g_lightPos[1], g_lightPos[2]);
   light.matrix.scale(-0.1, -0.1, -0.1);
