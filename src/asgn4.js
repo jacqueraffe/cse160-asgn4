@@ -37,6 +37,7 @@ var FSHADER_SOURCE =`
   uniform vec3 u_lightPos;
   uniform vec3 u_lightColor;
   uniform vec3 u_cameraPos;
+  uniform bool u_lightOn;
   varying vec3 v_Normal;
   varying vec4 v_VertPos;
   void main() {
@@ -66,8 +67,9 @@ var FSHADER_SOURCE =`
   
   vec3 diffuse = vec3(gl_FragColor) * nDotL *0.7;
   vec3 ambient = vec3(gl_FragColor) * 0.3;
-  gl_FragColor = vec4((specular+diffuse)*u_lightColor+ambient, 1.0);
-  
+  if (u_lightOn){
+    gl_FragColor = vec4((specular+diffuse)*u_lightColor+ambient, 1.0);
+  } 
 }`
   
 //Global Vars
@@ -170,6 +172,12 @@ function connectVariablesToGLSL(){
     console.log('Failed to get the storage location of u_FragColor');
     return;
   }
+  
+ u_lightOn = gl.getUniformLocation(gl.program, 'u_lightOn');
+ if (!u_lightOn) {
+   console.log('Failed to get the storage location of u_lightOn');
+   return;
+ }
   
   u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
   if (!u_ModelMatrix) {
@@ -282,11 +290,14 @@ function logMaze(maze) {
 // x, z
 var g_pearls = [];
 let g_lightPos = [0,3,-2];
-let g_lightColor = [1, 1, 0];
+let g_lightColor = [1, 1, 1];
+let g_lightOn = true;
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
   document.getElementById('removeBlock').onclick = function() {updateBlock(false, g_map);};
+  document.getElementById('lightOn').onclick = function() {g_lightOn = true;};
+  document.getElementById('lightOff').onclick = function() {g_lightOn = false;};
   document.getElementById('animateLightOn').onclick = function() {g_animateLight = true;};
   document.getElementById('animateLightOff').onclick = function() {g_animateLight = false;};
   document.getElementById('normalsOn').onclick = function() {g_normalsOn = true;};
@@ -358,7 +369,6 @@ function main() {
   connectVariablesToGLSL();
   addActionForHtmlUI();
   initTextures();
-  
   requestAnimationFrame(tick);
 }
 
@@ -450,7 +460,7 @@ function renderAllShapes(){
   var eye = g_camera.eye.elements;
   gl.uniform3f(u_cameraPos, eye[0], eye[1], eye[2]);
   gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
-
+  gl.uniform1f(u_lightOn, g_lightOn);
   
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
