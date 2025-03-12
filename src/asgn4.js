@@ -325,6 +325,7 @@ function main() {
   connectVariablesToGLSL();
   addActionForHtmlUI();
   initTextures();
+  
   requestAnimationFrame(tick);
 }
 
@@ -445,6 +446,7 @@ function renderAllShapes(){
   collectPearls();
   drawPearls(g_pearls);
   
+  g_lightPos[0] = Math.cos(g_seconds)*16;
   
   var light = new Cube();
   light.color = [2,2,0,1];
