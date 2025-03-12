@@ -50,12 +50,18 @@ var FSHADER_SOURCE =`
     gl_FragColor = vec4(1,0.2,0.2,1);
   }
   vec3 lightVector = vec3(v_VertPos)-u_lightPos;
-  float r = length(lightVector);
-  if(r<5.0){
-    gl_FragColor = vec4(1,0,0,1);
-  } else if(r<10.0){
-    gl_FragColor = vec4(0,1,0,1);
-  }
+  float r = length(lightVector)*0.1;
+  // N dot L
+  vec3 L = normalize(lightVector);
+  vec3 N = normalize(v_Normal);
+  float nDotL = max(dot(N,L), 0.0);
+  
+  vec3 diffuse = vec3(gl_FragColor) * nDotL;
+  vec3 ambient = vec3(gl_FragColor) * 0.3;
+  gl_FragColor = vec4(diffuse+ambient, 1.0);
+  
+  
+  // gl_FragColor = vec4(vec3(gl_FragColor)/(r*r),1);
 }`
   
 //Global Vars
@@ -93,7 +99,7 @@ function setupWebGL(){
     g_map = mazeResult.maze;
     const pos = mazeResult.startPosition;
     var eye = new Vector3([pos[1]-16, 1.75, pos[0]-16]);
-    logMaze(g_map);
+    //logMaze(g_map);
     g_camera = new Camera(canvas, g_map, eye);
     g_camera.updateViewMatrix();
 }
@@ -253,7 +259,7 @@ function logMaze(maze) {
 
 // x, z
 var g_pearls = [];
-let g_lightPos = [0,5,-2];
+let g_lightPos = [0,3,-2];
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
@@ -334,8 +340,14 @@ function tick() {
   g_camera.move(); // Update camera position based on keys
   g_camera.updateViewMatrix();
   g_seconds = performance.now()/1000.0-g_startTime;
+  animation();
   renderAllShapes();
   requestAnimationFrame(tick);
+}
+
+function animation(){
+  g_lightPos[0] = Math.cos(g_seconds)*16;
+
 }
 
 function drawPearls(pearls) {
@@ -386,6 +398,7 @@ function drawMap(map) {
       }
     }
 }
+
 function collectPearls(){
   x = Math.floor(g_camera.target.elements[0]+0.5);
   z = Math.floor(g_camera.target.elements[2]+0.5);
@@ -405,6 +418,7 @@ function renderAllShapes(){
   projMat.setPerspective(30, canvas.width/canvas.height, 0.1, 100);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
   
@@ -445,8 +459,6 @@ function renderAllShapes(){
   
   collectPearls();
   drawPearls(g_pearls);
-  
-  g_lightPos[0] = Math.cos(g_seconds)*16;
   
   var light = new Cube();
   light.color = [2,2,0,1];
