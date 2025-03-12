@@ -65,6 +65,7 @@ let g_startTime = performance.now()/1000.0;
 let g_map;
 let g_globalAngle = 0;
 let g_score = 0;
+let g_normalsOn = false;
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -239,6 +240,8 @@ var g_pearls = [];
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
   document.getElementById('removeBlock').onclick = function() {updateBlock(false, g_map);};
+  document.getElementById('normalsOn').onclick = function() {g_normalsOn = true;};
+  document.getElementById('normalsOff').onclick = function() {g_normalsOn = false;};
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
 }
 
@@ -314,15 +317,31 @@ function tick() {
 
 function drawPearls(pearls) {
   var pearl = new Sphere(20, 20);
-  pearl.color = [170/256, 210/255, 229/255, 1.0];
-  pearl.textureNum = -2;
+  var cube = new Cube();
+  if (g_normalsOn){
+    pearl.textureNum = -3;
+    cube.textureNum = -3;
+  } else {
+    pearl.color = [170/256, 210/255, 229/255, 1.0];
+    cube.color = [170/256, 210/255, 229/255, 1.0];
+    pearl.textureNum = -2;
+    cube.textureNum = -2;
+  }
   var n = 0;
   for (var d=0; d<pearls.length; d++){
-    pearl.matrix.setIdentity();
-    pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
-    pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
-    pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
-    pearl.renderFast();
+    if (d%2 == 0){
+      pearl.matrix.setIdentity();
+      pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
+      pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
+      pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
+      pearl.renderFast();
+    } else {
+      cube.matrix.setIdentity();
+      cube.matrix.translate(pearls[d][0], 2, pearls[d][1]);
+      cube.matrix.rotate(g_seconds*30, 0, 1, 0);
+      cube.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
+      cube.renderFast();
+    }
   }
 }
 
@@ -355,7 +374,6 @@ function collectPearls(){
     }
   }
 }
-  
   
 function renderAllShapes(){
   // Clear <canvas>
