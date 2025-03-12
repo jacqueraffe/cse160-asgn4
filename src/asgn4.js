@@ -35,6 +35,7 @@ var FSHADER_SOURCE =`
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
   uniform vec3 u_lightPos;
+  uniform vec3 u_cameraPos;
   varying vec3 v_Normal;
   varying vec4 v_VertPos;
   void main() {
@@ -56,12 +57,16 @@ var FSHADER_SOURCE =`
   vec3 N = normalize(v_Normal);
   float nDotL = max(dot(N,L), 0.0);
   
-  vec3 diffuse = vec3(gl_FragColor) * nDotL;
+  vec3 R = reflect(L, N);
+  
+  vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
+  
+  float specular = pow(max(dot(E,R), 0.0), 30.0);
+  
+  vec3 diffuse = vec3(gl_FragColor) * nDotL *0.7;
   vec3 ambient = vec3(gl_FragColor) * 0.3;
-  gl_FragColor = vec4(diffuse+ambient, 1.0);
+  gl_FragColor = vec4(specular+diffuse+ambient, 1.0);
   
-  
-  // gl_FragColor = vec4(vec3(gl_FragColor)/(r*r),1);
 }`
   
 //Global Vars
@@ -77,6 +82,7 @@ let u_whichTexture;
 let u_ProjectionMatrix;
 let u_ViewMatrix;
 let u_lightPos;
+let u_cameraPos;
 let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
@@ -85,6 +91,7 @@ let g_globalAngle = 0;
 let g_score = 0;
 let g_normalsOn = false;
 let g_animateLight = false;
+
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -142,6 +149,12 @@ function connectVariablesToGLSL(){
    console.log('Failed to get the storage location of u_whichTexture');
    return;
  }
+ 
+ u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
+  if (!u_cameraPos) {
+    console.log('Failed to get the storage location of u_cameraPos');
+    return;
+  }
  
  u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
   if (!u_lightPos) {
@@ -421,7 +434,10 @@ function renderAllShapes(){
   var projMat = new Matrix4();
   projMat.setPerspective(30, canvas.width/canvas.height, 0.1, 100);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
+  
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  var eye = g_camera.eye.elements;
+  gl.uniform3f(u_cameraPos, eye[0], eye[1], eye[2]);
   
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
@@ -435,6 +451,8 @@ function renderAllShapes(){
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.BACK);
   gl.enable(gl.DEPTH_TEST);
+  
+  
   drawMap(g_map);
   var floor = new Cube();
   floor.color = [10/256, 200/255, 10/255, 1.0];
