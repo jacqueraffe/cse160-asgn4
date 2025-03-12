@@ -15,6 +15,7 @@ var VSHADER_SOURCE =`
   attribute vec3 a_Normal;
   varying vec2 v_UV;
   varying vec3 v_Normal;
+  varying vec4 v_VertPos;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
@@ -23,6 +24,7 @@ var VSHADER_SOURCE =`
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix*a_Position;
     v_UV = a_UV;
     v_Normal = a_Normal;
+    v_VertPos = u_ModelMatrix * a_Position;
   }`
 
 // Fragment shader program
@@ -32,20 +34,29 @@ var FSHADER_SOURCE =`
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_whichTexture;
+  uniform vec3 u_lightPos;
   varying vec3 v_Normal;
+  varying vec4 v_VertPos;
   void main() {
   if (u_whichTexture == -3){
     gl_FragColor = vec4((v_Normal+1.0)/2.0,1.0);
-} else if (u_whichTexture == -2){
+  } else if (u_whichTexture == -2){
     gl_FragColor = u_FragColor;
-} else if (u_whichTexture == -1){
+  } else if (u_whichTexture == -1){
     gl_FragColor = vec4(v_UV, 1.0,1.0);
-    } else if (u_whichTexture == 0){
+  } else if (u_whichTexture == 0){
     gl_FragColor = texture2D(u_Sampler0, v_UV);
-} else {
- gl_FragColor = vec4(1,0.2,0.2,1);
- }
-  }`
+  } else {
+    gl_FragColor = vec4(1,0.2,0.2,1);
+  }
+  vec3 lightVector = vec3(v_VertPos)-u_lightPos;
+  float r = length(lightVector);
+  if(r<5.0){
+    gl_FragColor = vec4(1,0,0,1);
+  } else if(r<10.0){
+    gl_FragColor = vec4(0,1,0,1);
+  }
+}`
   
 //Global Vars
 let canvas;
@@ -59,6 +70,7 @@ let u_Sampler0;
 let u_whichTexture;
 let u_ProjectionMatrix;
 let u_ViewMatrix;
+let u_lightPos;
 let g_camera;
 let g_seconds;
 let g_startTime = performance.now()/1000.0;
@@ -123,6 +135,12 @@ function connectVariablesToGLSL(){
    console.log('Failed to get the storage location of u_whichTexture');
    return;
  }
+ 
+ u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
+  if (!u_lightPos) {
+    console.log('Failed to get the storage location of u_lightPos');
+    return;
+  }
   
   // Get the storage location of u_FragColor
  u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
@@ -233,9 +251,9 @@ function logMaze(maze) {
   }
 }
 
-
 // x, z
 var g_pearls = [];
+let g_lightPos = [0,5,-2];
 
 function addActionForHtmlUI(){
   document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
@@ -243,6 +261,10 @@ function addActionForHtmlUI(){
   document.getElementById('normalsOn').onclick = function() {g_normalsOn = true;};
   document.getElementById('normalsOff').onclick = function() {g_normalsOn = false;};
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
+  document.getElementById("lightSlideX").addEventListener("mousemove", function() {g_lightPos[0] = this.value/100;renderAllShapes(); });
+  document.getElementById("lightSlideY").addEventListener("mousemove", function() {g_lightPos[1] = this.value/100;renderAllShapes(); });
+  document.getElementById("lightSlideZ").addEventListener("mousemove", function() {g_lightPos[2] = this.value/100;renderAllShapes(); });
+  
 }
 
 function updateBlock(adding, map){
@@ -381,7 +403,7 @@ function renderAllShapes(){
   var projMat = new Matrix4();
   projMat.setPerspective(30, canvas.width/canvas.height, 0.1, 100);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
-  
+  gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
   var viewMat = g_camera.viewMatrix;
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
   
@@ -421,8 +443,16 @@ function renderAllShapes(){
   }
   
   collectPearls();
-  
   drawPearls(g_pearls);
+  
+  
+  var light = new Cube();
+  light.color = [2,2,0,1];
+  light.textureNum = -2;
+  light.matrix.translate(g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  light.matrix.scale(0.1, 0.1, 0.1);
+  light.matrix.translate(-0.5, -0.5, -0.5);
+  light.renderFast();
 
   var duration = performance.now() - startTime;
   sendTextToHTML( " Pearls collected: " + g_score, "score");
