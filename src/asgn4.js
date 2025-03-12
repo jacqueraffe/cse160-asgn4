@@ -64,7 +64,7 @@ let g_seconds;
 let g_startTime = performance.now()/1000.0;
 let g_map;
 let g_globalAngle = 0;
-
+let g_score = 0;
 
 function setupWebGL(){
     // Retrieve <canvas> element
@@ -76,7 +76,12 @@ function setupWebGL(){
       console.log('Failed to get the rendering context for WebGL');
       return;
     }
-    g_camera = new Camera(canvas);
+    let mazeResult = generateMaze(32, 32);
+    g_map = mazeResult.maze;
+    const pos = mazeResult.startPosition;
+    var eye = new Vector3([pos[1]-16, 1.75, pos[0]-16]);
+    logMaze(g_map);
+    g_camera = new Camera(canvas, g_map, eye);
     g_camera.updateViewMatrix();
 }
 
@@ -154,8 +159,103 @@ function connectVariablesToGLSL(){
   
 }
 
+/*
+NOTE TO GRADER: used AI to generate maze generation code with prompt
+Write a generateMaze function that takes a height and width and returns a 2D array that is a maze.
+The values should be 0 for corridors. The corridors should be 2 wide. The cells that are walls 
+should be of value 2. There should be surrounding walls. Write this in javascript.
+Also, write a log maze into the function.
+*/
+
+function generateMaze(targetHeight, targetWidth) {
+  // Calculate adjusted height and width to get close to the target corridor dimensions
+  const adjustedHeight = Math.floor(targetHeight / 2); // Roughly half for corridors
+  const adjustedWidth = Math.floor(targetWidth / 2);   // Roughly half for corridors
+
+  // Ensure adjusted dimensions are at least 1 to avoid empty maze
+  const mazeHeight = Math.max(3, 2 * adjustedHeight + 1); // Ensure odd and at least 3
+  const mazeWidth = Math.max(3, 2 * adjustedWidth + 1);   // Ensure odd and at least 3
+
+  // Initialize maze with walls (1) - Changed to 1
+  const maze = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(1));
+  const corridorCells = []; // Array to store coordinates of corridor cells
+
+  function carvePath(y, x) {
+      maze[y][x] = 0; // Mark current cell as corridor
+      corridorCells.push([y, x]); // Add corridor cell coordinates
+
+      const directions = [[0, 2], [0, -2], [2, 0], [-2, 0]]; // Possible directions to move (step of 2)
+      shuffleArray(directions); // Randomize direction order
+
+      for (const [dy, dx] of directions) {
+          const nextY = y + dy;
+          const nextX = x + dx;
+
+          // Wall check now against 1 - Changed to 1
+          if (nextY > 0 && nextY < mazeHeight - 1 && nextX > 0 && nextX < mazeWidth - 1 && maze[nextY][nextX] === 1) {
+              maze[y + dy / 2][x + dx / 2] = 0; // Carve path between cells
+              corridorCells.push([y + dy / 2, x + dx / 2]); // Add carved path cell as corridor
+              carvePath(nextY, nextX); // Recursive call
+          }
+      }
+  }
+
+  // Start carving path from a random cell inside the maze (odd indices to ensure corridors are 2 wide)
+  const startY = 1 + 2 * Math.floor(Math.random() * adjustedHeight);
+  const startX = 1 + 2 * Math.floor(Math.random() * adjustedWidth);
+
+  carvePath(startY, startX);
+
+  // Select a random starting position from the corridor cells
+  const startIndex = Math.floor(Math.random() * corridorCells.length);
+  const startPosition = corridorCells[startIndex];
+
+  return { maze, startPosition };
+}
+
+// Helper function to shuffle array (Fisher-Yates shuffle)
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function logMaze(maze) {
+  for (let y = 0; y < maze.length; y++) {
+      let rowStr = "";
+      for (let x = 0; x < maze[y].length; x++) {
+          // Wall check now against 1 in logMaze too - Updated logMaze for clarity
+          rowStr += maze[y][x] === 0 ? "  " : "* ";
+      }
+      console.log(rowStr);
+  }
+}
+
+
+// x, z
+var g_pearls = [];
+
 function addActionForHtmlUI(){
+  document.getElementById('addBlock').onclick = function() {updateBlock(true, g_map);};
+  document.getElementById('removeBlock').onclick = function() {updateBlock(false, g_map);};
   document.getElementById("angleSlide").addEventListener("mousemove", function() {g_globalAngle = this.value; renderAllShapes(); });
+}
+
+function updateBlock(adding, map){
+  var x = Math.floor(g_camera.target.elements[0])+16;
+  var z = Math.floor(g_camera.target.elements[2])+16;
+  if(z<0 || z >= map.length || x<0 || x >= map[0].length){
+    return;
+  }
+  if (adding){
+    map[z][x] +=1;
+  } else {
+    if (map[z][x] == 0){
+      return;
+    }
+    map[z][x] -= 1;
+  }
 }
 
 var g_skyTexture;
@@ -212,6 +312,49 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+function drawPearls(pearls) {
+  var pearl = new Sphere();
+  pearl.color = [170/256, 210/255, 229/255, 1.0];
+  pearl.textureNum = -2;
+  var n = 0;
+  for (var d=0; d<pearls.length; d++){
+    pearl.matrix.setIdentity();
+    pearl.matrix.translate(pearls[d][0], 2, pearls[d][1]);
+    pearl.matrix.rotate(g_seconds*30, 0, 1, 0);
+    pearl.matrix.translate(0, (Math.cos(g_seconds*Math.PI))*0.2, 0);
+    pearl.renderFast();
+  }
+}
+
+function drawMap(map) {
+    gl.bindTexture(gl.TEXTURE_2D, g_wallTexture);
+    var height = map.length;
+    var width = map[0].length;
+    var body = new Cube();
+    body.color = [0.8,1.0,1.0,1.0];
+    body.matrix.translate(-height/2, 0, -width/2);
+    var n = 0;
+    for (var x=0; x<width; x++){
+      for (var y=0; y<height; y++){
+        for(var z = 0; z < map[y][x]; z++){
+          body.matrix.translate(x, z, y);
+          body.renderFast();
+          body.matrix.translate(-x, -z, -y);
+        }
+      }
+    }
+}
+function collectPearls(){
+  x = Math.floor(g_camera.target.elements[0]+0.5);
+  z = Math.floor(g_camera.target.elements[2]+0.5);
+  for(var i = 0; i < g_pearls.length; i++){
+    if (g_pearls[i][0] == x && g_pearls[i][1] == z){
+      g_score +=1
+      g_pearls.splice(i, 1);
+      return;
+    }
+  }
+}
   
   
 function renderAllShapes(){
@@ -233,6 +376,7 @@ function renderAllShapes(){
   //gl.enable(gl.CULL_FACE);
   //gl.cullFace(gl.BACK);
   gl.enable(gl.DEPTH_TEST);
+  drawMap(g_map);
   var floor = new Cube();
   floor.color = [10/256, 200/255, 10/255, 1.0];
   floor.matrix.scale(32, 0.01, 32);
@@ -250,13 +394,20 @@ function renderAllShapes(){
   gl.bindTexture(gl.TEXTURE_2D, g_skyTexture);
   sky.renderFast();
   
-  var obj = new Cube();
-  obj.color = [100/256, 100/255, 100/255, 1.0];
-  obj.matrix.translate(-1, 0, 0);
-  obj.textureNum = -3;
-  obj.renderFast();
+  if (g_pearls.length < 30){
+    var x = Math.floor(Math.random() * (32));
+    var y = Math.floor(Math.random() * (32));
+    if (g_map[y][x] == 0){
+      g_pearls = g_pearls.concat([[y-16,x-16]]);
+    }
+  }
+  
+  collectPearls();
+  
+  drawPearls(g_pearls);
 
   var duration = performance.now() - startTime;
+  sendTextToHTML( " Pearls collected: " + g_score, "score");
   sendTextToHTML( " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), "numdot");
   sendTextToHTML( "target x: " + g_camera.target.elements[0] + " z: " + g_camera.target.elements[2], "targetXZ");
   sendTextToHTML( "eye x: " + g_camera.eye.elements[0] + " z: " + g_camera.eye.elements[2], "eyeXZ");
