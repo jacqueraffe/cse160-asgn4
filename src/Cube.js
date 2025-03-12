@@ -49,7 +49,7 @@ class Cube {
         ]);
         
         this.cubeVertsNormal = new Float32Array([
-            // xy0 face
+          // xy0 face
           0.0, 0.0, 1.0,   0.0, 0.0, 1.0,   0.0, 0.0, 1.0,
           0.0, 0.0, 1.0,   0.0, 0.0, 1.0,   0.0, 0.0, 1.0,
           // xy1
